@@ -16,8 +16,8 @@
 - [x] Viết routes/routes.go (health check)
 - [x] Viết docker-compose.yml (PostgreSQL port 5433)
 - [x] Chạy docker compose up + go run main.go → verify 20 bảng được tạo ✅
-- [ ] Init frontend (React + TypeScript + Ant Design)
-- [ ] Commit đầu tiên lên GitHub
+- [x] Init frontend (React + TypeScript + Ant Design) ✅
+- [x] Commit đầu tiên lên GitHub ✅
 
 ### Tài liệu (không block code)
 - [ ] Hỏi trường yêu cầu báo cáo
