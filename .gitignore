@@ -1,0 +1,38 @@
+# Dependencies
+node_modules
+
+# IDE
+.idea
+.vscode
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+
+# Build outputs
+dist
+build
+.next
+*.tsbuildinfo
+.turbo
+
+# Backend
+backend/tmp/
+
+# Local files
+*.local
+*.local.*
+
+# Logs
+.logs/
+
+# Claude Code
+.claude/mcp.json
+.claude/scheduled_tasks.lock
+.claude/worktrees
+.worktrees/
