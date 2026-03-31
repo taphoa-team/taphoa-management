@@ -80,7 +80,10 @@ func CreateInventoryCheck(c *gin.Context) {
 
 // UpdateInventoryCheckItems — NV cập nhật số thực tế
 func UpdateInventoryCheckItems(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var check models.InventoryCheck
 	if err := config.DB.First(&check, id).Error; err != nil {
@@ -118,7 +121,10 @@ func UpdateInventoryCheckItems(c *gin.Context) {
 // ConfirmInventoryCheck — xác nhận kiểm kê → điều chỉnh tồn kho theo actual
 // FIX 2.7: Duyệt qua nhiều batch khi difference lớn
 func ConfirmInventoryCheck(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var check models.InventoryCheck
 	if err := config.DB.Preload("Items").First(&check, id).Error; err != nil {
@@ -196,7 +202,10 @@ func ListInventoryChecks(c *gin.Context) {
 
 // GetInventoryCheck — chi tiết 1 đợt kiểm kê
 func GetInventoryCheck(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var check models.InventoryCheck
 	if err := config.DB.Preload("User").Preload("Items.Product").First(&check, id).Error; err != nil {

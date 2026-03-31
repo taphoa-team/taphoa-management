@@ -219,13 +219,16 @@ func ListInvoices(c *gin.Context) {
 		query = query.Where("status = ?", status)
 	}
 
-	query.Limit(100).Find(&invoices)
+	query.Scopes(paginate(c)).Find(&invoices)
 	c.JSON(http.StatusOK, invoices)
 }
 
 // GetInvoice — chi tiết 1 đơn hàng
 func GetInvoice(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var invoice models.Invoice
 	if err := config.DB.Preload("Items.Product").Preload("User").Preload("Customer").
@@ -240,7 +243,10 @@ func GetInvoice(c *gin.Context) {
 // CancelInvoice — hủy đơn → cộng lại tồn kho (trừ phần đã return), xóa nợ nếu có
 // FIX 1.1: Không cho cancel nếu đã có return
 func CancelInvoice(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var invoice models.Invoice
 	if err := config.DB.Preload("Items").First(&invoice, id).Error; err != nil {

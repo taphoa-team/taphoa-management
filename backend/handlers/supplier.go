@@ -41,7 +41,10 @@ func CreateSupplier(c *gin.Context) {
 }
 
 func UpdateSupplier(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var supplier models.Supplier
 	if err := config.DB.First(&supplier, id).Error; err != nil {
@@ -65,7 +68,10 @@ func UpdateSupplier(c *gin.Context) {
 }
 
 func DeleteSupplier(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var supplier models.Supplier
 	if err := config.DB.First(&supplier, id).Error; err != nil {

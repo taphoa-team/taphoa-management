@@ -6,7 +6,7 @@ type Invoice struct {
 	ID              uint      `json:"id" gorm:"primaryKey"`
 	UserID          uint      `json:"user_id" gorm:"not null"`
 	User            User      `json:"user,omitempty" gorm:"foreignKey:UserID"`
-	ShiftID         uint      `json:"shift_id" gorm:"not null"`
+	ShiftID         uint      `json:"shift_id" gorm:"not null;index:idx_invoice_shift_status,priority:1"`
 	CustomerID      *uint     `json:"customer_id"`                              // NULL = khách lẻ
 	Customer        *Customer `json:"customer,omitempty" gorm:"foreignKey:CustomerID"`
 	Total           int       `json:"total" gorm:"not null"`
@@ -17,7 +17,7 @@ type Invoice struct {
 	CashGiven       int       `json:"cash_given" gorm:"default:0"`              // tiền khách đưa
 	ChangeAmount    int       `json:"change_amount" gorm:"default:0"`           // tiền thừa
 	PaymentMethod   string    `json:"payment_method" gorm:"size:20;not null"`   // cash/transfer/mixed/debt
-	Status          string    `json:"status" gorm:"size:20;default:completed"`
+	Status          string    `json:"status" gorm:"size:20;default:completed;index:idx_invoice_shift_status,priority:2"`
 	Note            *string   `json:"note"`
 	CreatedAt       time.Time `json:"created_at"`
 

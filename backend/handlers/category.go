@@ -39,7 +39,10 @@ func CreateCategory(c *gin.Context) {
 
 // UpdateCategory — sửa tên nhóm hàng
 func UpdateCategory(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var category models.Category
 	if err := config.DB.First(&category, id).Error; err != nil {
@@ -64,7 +67,10 @@ func UpdateCategory(c *gin.Context) {
 
 // DeleteCategory — xóa nhóm hàng (chỉ khi không có sản phẩm nào thuộc nhóm)
 func DeleteCategory(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var category models.Category
 	if err := config.DB.First(&category, id).Error; err != nil {

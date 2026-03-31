@@ -109,6 +109,12 @@ func CreateReturn(c *gin.Context) {
 		return
 	}
 
+	// FIX N5: Adjust shift stats (trừ doanh thu ca)
+	tx.Model(&models.Shift{}).Where("id = ?", invoice.ShiftID).
+		Updates(map[string]interface{}{
+			"total_sales": gorm.Expr("total_sales - ?", totalRefund),
+		})
+
 	// Nếu đơn gốc là mua nợ → trừ nợ
 	if invoice.PaymentMethod == "debt" && invoice.CustomerID != nil {
 		debt := models.Debt{
@@ -117,7 +123,8 @@ func CreateReturn(c *gin.Context) {
 			Amount:     totalRefund,
 		}
 		tx.Create(&debt)
-		tx.Model(&models.Customer{}).Where("id = ?", *invoice.CustomerID).
+		// FIX N6: Guard against negative debt
+		tx.Model(&models.Customer{}).Where("id = ? AND total_debt >= ?", *invoice.CustomerID, totalRefund).
 			Update("total_debt", gorm.Expr("total_debt - ?", totalRefund))
 	}
 
@@ -130,6 +137,6 @@ func CreateReturn(c *gin.Context) {
 // ListReturns — danh sách phiếu trả hàng
 func ListReturns(c *gin.Context) {
 	var returns []models.Return
-	config.DB.Preload("User").Preload("Invoice").Order("created_at DESC").Limit(100).Find(&returns)
+	config.DB.Preload("User").Preload("Invoice").Scopes(paginate(c)).Order("created_at DESC").Find(&returns)
 	c.JSON(http.StatusOK, returns)
 }

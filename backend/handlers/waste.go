@@ -72,6 +72,6 @@ func CreateWaste(c *gin.Context) {
 // ListWaste — danh sách phiếu hủy
 func ListWaste(c *gin.Context) {
 	var records []models.WasteRecord
-	config.DB.Preload("Product").Preload("User").Order("created_at DESC").Limit(100).Find(&records)
+	config.DB.Preload("Product").Preload("User").Scopes(paginate(c)).Order("created_at DESC").Find(&records)
 	c.JSON(http.StatusOK, records)
 }

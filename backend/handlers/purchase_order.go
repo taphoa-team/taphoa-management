@@ -34,13 +34,16 @@ type PurchaseOrderRequest struct {
 func ListPurchaseOrders(c *gin.Context) {
 	var orders []models.PurchaseOrder
 	config.DB.Preload("Supplier").Preload("User").
-		Order("created_at DESC").Find(&orders)
+		Scopes(paginate(c)).Order("created_at DESC").Find(&orders)
 	c.JSON(http.StatusOK, orders)
 }
 
 // GetPurchaseOrder — chi tiết 1 đơn nhập
 func GetPurchaseOrder(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var order models.PurchaseOrder
 	if err := config.DB.Preload("Supplier").Preload("User").
@@ -127,7 +130,10 @@ func CreatePurchaseOrder(c *gin.Context) {
 // CancelPurchaseOrder — hủy đơn nhập → trừ lại tồn kho từ đúng batch
 // FIX 1.2: Dùng item.Unit + item.BatchID thay vì "base" + đoán batch
 func CancelPurchaseOrder(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var order models.PurchaseOrder
 	if err := config.DB.Preload("Items").First(&order, id).Error; err != nil {

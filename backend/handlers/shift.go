@@ -46,7 +46,10 @@ func OpenShift(c *gin.Context) {
 // CloseShift — đóng ca, đối soát tiền
 // FIX 2.2: Kiểm tra shift thuộc user hiện tại hoặc admin
 func CloseShift(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var shift models.Shift
 	if err := config.DB.First(&shift, id).Error; err != nil {
@@ -114,7 +117,7 @@ func GetCurrentShift(c *gin.Context) {
 // ListShifts — danh sách ca (admin xem tất cả)
 func ListShifts(c *gin.Context) {
 	var shifts []models.Shift
-	config.DB.Preload("User").Order("opened_at DESC").Limit(50).Find(&shifts)
+	config.DB.Preload("User").Scopes(paginate(c)).Order("opened_at DESC").Find(&shifts)
 
 	// FIX 3.1: Dùng _ thay vì gorm.Expr cho read-only
 	c.JSON(http.StatusOK, shifts)

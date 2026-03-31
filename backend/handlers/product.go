@@ -71,7 +71,7 @@ func ListProducts(c *gin.Context) {
 		query = query.Where("category_id = ?", categoryID)
 	}
 
-	query.Order("name").Find(&products)
+	query.Scopes(paginate(c)).Order("name").Find(&products)
 
 	stockMap := getStockMap(config.DB)
 
@@ -93,7 +93,10 @@ func ListProducts(c *gin.Context) {
 
 // GetProduct — chi tiết 1 sản phẩm kèm batches
 func GetProduct(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var product models.Product
 	if err := config.DB.Preload("Category").Preload("Batches", "quantity > 0").Preload("UnitConversions").First(&product, id).Error; err != nil {
@@ -157,7 +160,10 @@ func CreateProduct(c *gin.Context) {
 
 // UpdateProduct — sửa thông tin sản phẩm
 func UpdateProduct(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var product models.Product
 	if err := config.DB.First(&product, id).Error; err != nil {
@@ -199,7 +205,10 @@ func UpdateProduct(c *gin.Context) {
 
 // DeactivateProduct — ngừng bán sản phẩm (không xóa)
 func DeactivateProduct(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	result := config.DB.Model(&models.Product{}).Where("id = ?", id).Update("is_active", false)
 	if result.RowsAffected == 0 {
@@ -220,7 +229,10 @@ type UnitConversionRequest struct {
 
 // ListUnitConversions — danh sách quy đổi đơn vị của 1 sản phẩm
 func ListUnitConversions(c *gin.Context) {
-	productID := c.Param("id")
+	productID, ok := parseID(c)
+	if !ok {
+		return
+	}
 	var conversions []models.UnitConversion
 	config.DB.Where("product_id = ?", productID).Find(&conversions)
 	c.JSON(http.StatusOK, conversions)
@@ -228,7 +240,10 @@ func ListUnitConversions(c *gin.Context) {
 
 // CreateUnitConversion — thêm quy đổi đơn vị
 func CreateUnitConversion(c *gin.Context) {
-	productID := c.Param("id")
+	productID, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var product models.Product
 	if err := config.DB.First(&product, productID).Error; err != nil {
@@ -296,7 +311,7 @@ func DeleteUnitConversion(c *gin.Context) {
 // ListInventory — xem tồn kho tất cả SP, cảnh báo sắp hết
 func ListInventory(c *gin.Context) {
 	var products []models.Product
-	config.DB.Preload("Category").Where("is_active = ?", true).Order("name").Find(&products)
+	config.DB.Preload("Category").Where("is_active = ?", true).Scopes(paginate(c)).Order("name").Find(&products)
 
 	stockMap := getStockMap(config.DB)
 
@@ -328,7 +343,10 @@ func ListInventory(c *gin.Context) {
 
 // ListProductBatches — xem lô hàng của 1 SP
 func ListProductBatches(c *gin.Context) {
-	productID := c.Param("id")
+	productID, ok := parseID(c)
+	if !ok {
+		return
+	}
 	var batches []models.ProductBatch
 	config.DB.Where("product_id = ? AND quantity > 0", productID).
 		Order("COALESCE(expiry_date, '9999-12-31') ASC, received_at ASC").

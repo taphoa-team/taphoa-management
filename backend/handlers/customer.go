@@ -25,12 +25,15 @@ func ListCustomers(c *gin.Context) {
 		query = query.Where("name ILIKE ? OR phone ILIKE ?", like, like)
 	}
 
-	query.Find(&customers)
+	query.Scopes(paginate(c)).Find(&customers)
 	c.JSON(http.StatusOK, customers)
 }
 
 func GetCustomer(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var customer models.Customer
 	if err := config.DB.First(&customer, id).Error; err != nil {
@@ -71,7 +74,10 @@ func CreateCustomer(c *gin.Context) {
 }
 
 func UpdateCustomer(c *gin.Context) {
-	id := c.Param("id")
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var customer models.Customer
 	if err := config.DB.First(&customer, id).Error; err != nil {
@@ -103,7 +109,10 @@ type DebtPaymentRequest struct {
 // CreateDebtPayment — ghi nhận trả nợ
 // FIX 2.10: Atomic read-modify-write cho TotalDebt
 func CreateDebtPayment(c *gin.Context) {
-	customerID := c.Param("id")
+	customerID, ok := parseID(c)
+	if !ok {
+		return
+	}
 
 	var customer models.Customer
 	if err := config.DB.First(&customer, customerID).Error; err != nil {
