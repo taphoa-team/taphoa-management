@@ -8,6 +8,7 @@ import (
 	"taphoa-management/backend/routes"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -45,14 +46,35 @@ func main() {
 	}
 	log.Println("Database migrated")
 
+	// Seed admin mặc định — chỉ tạo nếu chưa có
+	seedAdmin()
+
 	// Khởi tạo router
 	r := gin.Default()
 
 	// Đăng ký routes
 	routes.SetupRoutes(r)
 
-	// Chạy server trên port 8080
+	// Chạy server trên port 8082
 	port := "8082"
 	log.Println("Server running on http://localhost:" + port)
 	r.Run(":" + port)
+}
+
+func seedAdmin() {
+	var count int64
+	config.DB.Model(&models.User{}).Count(&count)
+	if count > 0 {
+		return // đã có user → không seed
+	}
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+	admin := models.User{
+		Name:     "Admin",
+		Phone:    "0999999999",
+		Password: string(hashedPassword),
+		Role:     "admin",
+	}
+	config.DB.Create(&admin)
+	log.Println("Seeded default admin: 0999999999 / admin123")
 }
