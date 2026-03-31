@@ -8,21 +8,22 @@ import (
 	"taphoa-management/backend/models"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // --- Request structs ---
 
 type PurchaseOrderItemRequest struct {
 	ProductID  uint       `json:"product_id" binding:"required"`
-	Quantity   int        `json:"quantity" binding:"required"`
+	Quantity   int        `json:"quantity" binding:"required,gt=0"`
 	Unit       string     `json:"unit" binding:"required"`
-	CostPrice  int        `json:"cost_price" binding:"required"`
+	CostPrice  int        `json:"cost_price" binding:"required,gt=0"`
 	ExpiryDate *time.Time `json:"expiry_date"`
 }
 
 type PurchaseOrderRequest struct {
 	SupplierID uint                       `json:"supplier_id" binding:"required"`
-	Paid       int                        `json:"paid"`
+	Paid       int                        `json:"paid" binding:"min=0"`
 	Note       *string                    `json:"note"`
 	Items      []PurchaseOrderItemRequest `json:"items" binding:"required,min=1"`
 }
@@ -61,7 +62,6 @@ func CreatePurchaseOrder(c *gin.Context) {
 
 	userID, _ := c.Get("user_id")
 
-	// Bắt đầu transaction — tất cả thành công hoặc tất cả rollback
 	tx := config.DB.Begin()
 
 	var total int
@@ -78,12 +78,6 @@ func CreatePurchaseOrder(c *gin.Context) {
 
 		total += item.CostPrice * item.Quantity
 
-		items = append(items, models.PurchaseOrderItem{
-			ProductID: item.ProductID,
-			Quantity:  item.Quantity,
-			CostPrice: item.CostPrice,
-		})
-
 		// Tạo lô hàng mới
 		batch := models.ProductBatch{
 			ProductID:  item.ProductID,
@@ -97,9 +91,17 @@ func CreatePurchaseOrder(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tạo được lô hàng"})
 			return
 		}
+
+		// FIX 2.4: Lưu Unit + BatchID vào PurchaseOrderItem
+		items = append(items, models.PurchaseOrderItem{
+			ProductID: item.ProductID,
+			Quantity:  item.Quantity,
+			Unit:      item.Unit,
+			CostPrice: item.CostPrice,
+			BatchID:   batch.ID,
+		})
 	}
 
-	// Tạo đơn nhập
 	order := models.PurchaseOrder{
 		UserID:     userID.(uint),
 		SupplierID: req.SupplierID,
@@ -117,13 +119,13 @@ func CreatePurchaseOrder(c *gin.Context) {
 
 	tx.Commit()
 
-	// Load lại để trả về đầy đủ
 	config.DB.Preload("Supplier").Preload("User").Preload("Items.Product").First(&order, order.ID)
 
 	c.JSON(http.StatusCreated, order)
 }
 
-// CancelPurchaseOrder — hủy đơn nhập → trừ lại tồn kho
+// CancelPurchaseOrder — hủy đơn nhập → trừ lại tồn kho từ đúng batch
+// FIX 1.2: Dùng item.Unit + item.BatchID thay vì "base" + đoán batch
 func CancelPurchaseOrder(c *gin.Context) {
 	id := c.Param("id")
 
@@ -140,19 +142,24 @@ func CancelPurchaseOrder(c *gin.Context) {
 
 	tx := config.DB.Begin()
 
-	// Trừ lại tồn kho — tìm batch gần nhất của sản phẩm và trừ
 	for _, item := range order.Items {
-		baseQty, _ := convertToBaseQuantity(tx, item.ProductID, "base", item.Quantity)
-		// Tìm batch mới nhất của SP này để trừ
-		var batch models.ProductBatch
-		if err := tx.Where("product_id = ? AND quantity >= ?", item.ProductID, baseQty).
-			Order("created_at DESC").First(&batch).Error; err != nil {
+		// FIX 1.2: Quy đổi đúng unit
+		baseQty, err := convertToBaseQuantity(tx, item.ProductID, item.Unit, item.Quantity)
+		if err != nil {
 			tx.Rollback()
-			c.JSON(http.StatusConflict, gin.H{"error": "Không đủ tồn kho để hủy đơn nhập"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi quy đổi: " + err.Error()})
 			return
 		}
-		batch.Quantity -= baseQty
-		tx.Save(&batch)
+
+		// FIX 1.2: Trừ đúng batch do PO này tạo
+		result := tx.Model(&models.ProductBatch{}).
+			Where("id = ? AND quantity >= ?", item.BatchID, baseQty).
+			Update("quantity", gorm.Expr("quantity - ?", baseQty))
+		if result.RowsAffected == 0 {
+			tx.Rollback()
+			c.JSON(http.StatusConflict, gin.H{"error": "Không đủ tồn kho trong lô để hủy đơn nhập"})
+			return
+		}
 	}
 
 	order.Status = "cancelled"

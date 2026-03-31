@@ -7,6 +7,7 @@ import (
 	"taphoa-management/backend/models"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type CustomerRequest struct {
@@ -95,11 +96,12 @@ func UpdateCustomer(c *gin.Context) {
 // --- Debts ---
 
 type DebtPaymentRequest struct {
-	Amount int     `json:"amount" binding:"required"`
+	Amount int     `json:"amount" binding:"required,gt=0"`
 	Note   *string `json:"note"`
 }
 
 // CreateDebtPayment — ghi nhận trả nợ
+// FIX 2.10: Atomic read-modify-write cho TotalDebt
 func CreateDebtPayment(c *gin.Context) {
 	customerID := c.Param("id")
 
@@ -130,10 +132,14 @@ func CreateDebtPayment(c *gin.Context) {
 	}
 	tx.Create(&debt)
 
-	customer.TotalDebt -= req.Amount
-	tx.Save(&customer)
+	// FIX 2.10: Atomic update thay vì read-modify-write
+	tx.Model(&models.Customer{}).Where("id = ? AND total_debt >= ?", customer.ID, req.Amount).
+		Update("total_debt", gorm.Expr("total_debt - ?", req.Amount))
 
 	tx.Commit()
+
+	// Reload
+	config.DB.First(&customer, customer.ID)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message":    "Đã ghi nhận trả nợ",

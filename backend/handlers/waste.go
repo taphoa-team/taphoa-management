@@ -12,7 +12,7 @@ import (
 type WasteRequest struct {
 	ProductID uint    `json:"product_id" binding:"required"`
 	BatchID   uint    `json:"batch_id" binding:"required"`
-	Quantity  int     `json:"quantity" binding:"required"`
+	Quantity  int     `json:"quantity" binding:"required,gt=0"`
 	Reason    string  `json:"reason" binding:"required,oneof=expired damaged lost other"`
 	Note      *string `json:"note"`
 }
@@ -25,10 +25,16 @@ func CreateWaste(c *gin.Context) {
 		return
 	}
 
-	// Kiểm tra batch có đủ hàng không
+	// Kiểm tra batch tồn tại
 	var batch models.ProductBatch
 	if err := config.DB.First(&batch, req.BatchID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy lô hàng"})
+		return
+	}
+
+	// FIX 3.7: Validate batch thuộc đúng product
+	if batch.ProductID != req.ProductID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Lô hàng không thuộc sản phẩm này"})
 		return
 	}
 

@@ -8,15 +8,17 @@ import (
 	"taphoa-management/backend/models"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type InventoryCheckItemRequest struct {
 	ProductID      uint    `json:"product_id" binding:"required"`
-	ActualQuantity int     `json:"actual_quantity" binding:"required"`
+	ActualQuantity int     `json:"actual_quantity" binding:"min=0"`
 	Note           *string `json:"note"`
 }
 
 // CreateInventoryCheck — tạo đợt kiểm kê, tự điền system_quantity
+// FIX 3.2: Batch query thay vì N+1
 func CreateInventoryCheck(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
@@ -32,17 +34,27 @@ func CreateInventoryCheck(c *gin.Context) {
 	}
 	config.DB.Create(&check)
 
-	// Tự tạo items cho tất cả SP đang active, kèm system_quantity
+	// FIX 3.2: Một query lấy tất cả stock
+	type stockResult struct {
+		ProductID uint
+		Total     int
+	}
+	var stocks []stockResult
+	config.DB.Model(&models.ProductBatch{}).
+		Select("product_id, COALESCE(SUM(quantity), 0) as total").
+		Group("product_id").
+		Find(&stocks)
+
+	stockMap := make(map[uint]int)
+	for _, s := range stocks {
+		stockMap[s.ProductID] = s.Total
+	}
+
 	var products []models.Product
 	config.DB.Where("is_active = ?", true).Find(&products)
 
 	for _, p := range products {
-		var stock int
-		config.DB.Model(&models.ProductBatch{}).
-			Where("product_id = ?", p.ID).
-			Select("COALESCE(SUM(quantity), 0)").
-			Scan(&stock)
-
+		stock := stockMap[p.ID]
 		item := models.InventoryCheckItem{
 			CheckID:        check.ID,
 			ProductID:      p.ID,
@@ -85,7 +97,7 @@ func UpdateInventoryCheckItems(c *gin.Context) {
 			Where("check_id = ? AND product_id = ?", check.ID, item.ProductID).
 			Updates(map[string]interface{}{
 				"actual_quantity": item.ActualQuantity,
-				"difference":     config.DB.Raw("? - system_quantity", item.ActualQuantity),
+				"difference":     gorm.Expr("? - system_quantity", item.ActualQuantity),
 				"note":           item.Note,
 			})
 	}
@@ -95,6 +107,7 @@ func UpdateInventoryCheckItems(c *gin.Context) {
 }
 
 // ConfirmInventoryCheck — xác nhận kiểm kê → điều chỉnh tồn kho theo actual
+// FIX 2.7: Duyệt qua nhiều batch khi difference lớn
 func ConfirmInventoryCheck(c *gin.Context) {
 	id := c.Param("id")
 
@@ -116,29 +129,42 @@ func ConfirmInventoryCheck(c *gin.Context) {
 			continue
 		}
 
-		// Điều chỉnh batch mới nhất (hoặc tạo adjustment batch)
-		var batch models.ProductBatch
-		if err := tx.Where("product_id = ? AND quantity > 0", item.ProductID).
-			Order("created_at DESC").First(&batch).Error; err != nil {
-			// Không có batch → tạo mới nếu actual > 0
-			if item.ActualQuantity > 0 {
+		if item.Difference < 0 {
+			// FIX 2.7: Trừ qua nhiều batch nếu cần
+			remaining := -item.Difference
+			var batches []models.ProductBatch
+			tx.Where("product_id = ? AND quantity > 0", item.ProductID).
+				Order("created_at DESC").Find(&batches)
+			for i := range batches {
+				if remaining <= 0 {
+					break
+				}
+				deduct := batches[i].Quantity
+				if deduct > remaining {
+					deduct = remaining
+				}
+				batches[i].Quantity -= deduct
+				tx.Save(&batches[i])
+				remaining -= deduct
+			}
+		} else {
+			// Cộng vào batch mới nhất hoặc tạo adjustment batch
+			var batch models.ProductBatch
+			if err := tx.Where("product_id = ? AND quantity > 0", item.ProductID).
+				Order("created_at DESC").First(&batch).Error; err != nil {
+				// Không có batch → tạo mới
 				newBatch := models.ProductBatch{
 					ProductID:  item.ProductID,
 					CostPrice:  0,
-					Quantity:   item.ActualQuantity,
+					Quantity:   item.Difference,
 					ReceivedAt: time.Now(),
 				}
 				tx.Create(&newBatch)
+			} else {
+				batch.Quantity += item.Difference
+				tx.Save(&batch)
 			}
-			continue
 		}
-
-		// Điều chỉnh: cộng/trừ difference vào batch
-		batch.Quantity += item.Difference
-		if batch.Quantity < 0 {
-			batch.Quantity = 0
-		}
-		tx.Save(&batch)
 	}
 
 	now := time.Now()

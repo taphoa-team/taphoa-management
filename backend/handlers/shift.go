@@ -10,6 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// gorm used in other files in this package
+
+
 // OpenShift — mở ca bán hàng
 func OpenShift(c *gin.Context) {
 	userID, _ := c.Get("user_id")
@@ -41,6 +44,7 @@ func OpenShift(c *gin.Context) {
 }
 
 // CloseShift — đóng ca, đối soát tiền
+// FIX 2.2: Kiểm tra shift thuộc user hiện tại hoặc admin
 func CloseShift(c *gin.Context) {
 	id := c.Param("id")
 
@@ -52,6 +56,14 @@ func CloseShift(c *gin.Context) {
 
 	if shift.ClosedAt != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Ca đã đóng rồi"})
+		return
+	}
+
+	// FIX 2.2: Chỉ owner hoặc admin mới đóng được
+	userID, _ := c.Get("user_id")
+	role, _ := c.Get("role")
+	if shift.UserID != userID.(uint) && role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Chỉ được đóng ca của chính mình"})
 		return
 	}
 
@@ -103,5 +115,8 @@ func GetCurrentShift(c *gin.Context) {
 func ListShifts(c *gin.Context) {
 	var shifts []models.Shift
 	config.DB.Preload("User").Order("opened_at DESC").Limit(50).Find(&shifts)
+
+	// FIX 3.1: Dùng _ thay vì gorm.Expr cho read-only
 	c.JSON(http.StatusOK, shifts)
 }
+

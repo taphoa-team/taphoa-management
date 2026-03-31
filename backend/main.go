@@ -7,6 +7,7 @@ import (
 	"taphoa-management/backend/models"
 	"taphoa-management/backend/routes"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -51,6 +52,14 @@ func main() {
 
 	// Khởi tạo router
 	r := gin.Default()
+
+	// FIX 2.6: CORS cho frontend
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3001"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+		AllowHeaders:     []string{"Authorization", "Content-Type"},
+		AllowCredentials: true,
+	}))
 
 	// Đăng ký routes
 	routes.SetupRoutes(r)

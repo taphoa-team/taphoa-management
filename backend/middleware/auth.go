@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -9,8 +11,15 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Secret key dùng để ký JWT — production nên đọc từ env
-var jwtSecret = []byte("taphoa-secret-key-change-in-production")
+// Secret key đọc từ env, fallback cho dev
+var jwtSecret = func() []byte {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		secret = "taphoa-dev-secret-do-not-use-in-production"
+		log.Println("WARNING: JWT_SECRET not set, using default dev secret")
+	}
+	return []byte(secret)
+}()
 
 // Claims = thông tin được gắn vào token
 type Claims struct {

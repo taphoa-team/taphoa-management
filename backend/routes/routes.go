@@ -30,116 +30,87 @@ func SetupRoutes(r *gin.Engine) {
 			// Auth
 			auth.GET("/auth/me", handlers.GetMe)
 
-			// Admin only
+			// === Categories ===
+			auth.GET("/categories", handlers.ListCategories)
+			auth.POST("/categories", handlers.CreateCategory)
+			auth.PUT("/categories/:id", handlers.UpdateCategory)
+
+			// === Products ===
+			auth.GET("/products", handlers.ListProducts)
+			auth.POST("/products", handlers.CreateProduct)
+			auth.GET("/products/:id", handlers.GetProduct)
+			auth.PUT("/products/:id", handlers.UpdateProduct)
+
+			// Unit conversions
+			auth.GET("/products/:id/conversions", handlers.ListUnitConversions)
+			auth.POST("/products/:id/conversions", handlers.CreateUnitConversion)
+			auth.PUT("/products/:id/conversions/:convId", handlers.UpdateUnitConversion)
+			auth.DELETE("/products/:id/conversions/:convId", handlers.DeleteUnitConversion)
+
+			// Batches
+			auth.GET("/products/:id/batches", handlers.ListProductBatches)
+
+			// === Suppliers ===
+			auth.GET("/suppliers", handlers.ListSuppliers)
+			auth.POST("/suppliers", handlers.CreateSupplier)
+			auth.PUT("/suppliers/:id", handlers.UpdateSupplier)
+
+			// === Purchase Orders ===
+			auth.GET("/purchase-orders", handlers.ListPurchaseOrders)
+			auth.POST("/purchase-orders", handlers.CreatePurchaseOrder)
+			auth.GET("/purchase-orders/:id", handlers.GetPurchaseOrder)
+
+			// === Shifts ===
+			auth.GET("/shifts", handlers.ListShifts)
+			auth.GET("/shifts/current", handlers.GetCurrentShift)
+			auth.POST("/shifts/open", handlers.OpenShift)
+			auth.POST("/shifts/:id/close", handlers.CloseShift)
+
+			// === Invoices ===
+			auth.GET("/invoices", handlers.ListInvoices)
+			auth.POST("/invoices", handlers.CreateInvoice)
+			auth.GET("/invoices/:id", handlers.GetInvoice)
+
+			// === Returns ===
+			auth.GET("/returns", handlers.ListReturns)
+			auth.POST("/returns", handlers.CreateReturn)
+
+			// === Inventory ===
+			auth.GET("/inventory", handlers.ListInventory)
+
+			// === Inventory Checks ===
+			auth.GET("/inventory-checks", handlers.ListInventoryChecks)
+			auth.POST("/inventory-checks", handlers.CreateInventoryCheck)
+			auth.GET("/inventory-checks/:id", handlers.GetInventoryCheck)
+			auth.PUT("/inventory-checks/:id/items", handlers.UpdateInventoryCheckItems)
+
+			// === Waste ===
+			auth.GET("/waste", handlers.ListWaste)
+			auth.POST("/waste", handlers.CreateWaste)
+
+			// === Customers ===
+			auth.GET("/customers", handlers.ListCustomers)
+			auth.POST("/customers", handlers.CreateCustomer)
+			auth.GET("/customers/:id", handlers.GetCustomer)
+			auth.PUT("/customers/:id", handlers.UpdateCustomer)
+			auth.POST("/customers/:id/debt-payment", handlers.CreateDebtPayment)
+
+			// === Debts ===
+			auth.GET("/debts/summary", handlers.ListDebtSummary)
+
+			// === Admin-only operations ===
+			// FIX 2.9: Destructive operations chỉ admin
 			admin := auth.Group("")
 			admin.Use(middleware.AdminRequired())
 			{
 				admin.POST("/auth/register", handlers.Register)
+				admin.DELETE("/categories/:id", handlers.DeleteCategory)
+				admin.DELETE("/suppliers/:id", handlers.DeleteSupplier)
+				admin.PATCH("/products/:id/deactivate", handlers.DeactivateProduct)
+				admin.PATCH("/invoices/:id/cancel", handlers.CancelInvoice)
+				admin.PATCH("/purchase-orders/:id/cancel", handlers.CancelPurchaseOrder)
+				admin.POST("/inventory-checks/:id/confirm", handlers.ConfirmInventoryCheck)
 			}
-
-			// === Categories ===
-			categories := auth.Group("/categories")
-			{
-				categories.GET("", handlers.ListCategories)
-				categories.POST("", handlers.CreateCategory)
-				categories.PUT("/:id", handlers.UpdateCategory)
-				categories.DELETE("/:id", handlers.DeleteCategory)
-			}
-
-			// === Products ===
-			products := auth.Group("/products")
-			{
-				products.GET("", handlers.ListProducts)
-				products.POST("", handlers.CreateProduct)
-				products.GET("/:id", handlers.GetProduct)
-				products.PUT("/:id", handlers.UpdateProduct)
-				products.PATCH("/:id/deactivate", handlers.DeactivateProduct)
-
-				// Unit conversions (nested under product)
-				products.GET("/:id/conversions", handlers.ListUnitConversions)
-				products.POST("/:id/conversions", handlers.CreateUnitConversion)
-				products.PUT("/:id/conversions/:convId", handlers.UpdateUnitConversion)
-				products.DELETE("/:id/conversions/:convId", handlers.DeleteUnitConversion)
-
-				// Batches
-				products.GET("/:id/batches", handlers.ListProductBatches)
-			}
-
-			// === Suppliers ===
-			suppliers := auth.Group("/suppliers")
-			{
-				suppliers.GET("", handlers.ListSuppliers)
-				suppliers.POST("", handlers.CreateSupplier)
-				suppliers.PUT("/:id", handlers.UpdateSupplier)
-				suppliers.DELETE("/:id", handlers.DeleteSupplier)
-			}
-
-			// === Purchase Orders (Nhập hàng) ===
-			po := auth.Group("/purchase-orders")
-			{
-				po.GET("", handlers.ListPurchaseOrders)
-				po.POST("", handlers.CreatePurchaseOrder)
-				po.GET("/:id", handlers.GetPurchaseOrder)
-				po.PATCH("/:id/cancel", handlers.CancelPurchaseOrder)
-			}
-
-			// === Shifts (Ca bán hàng) ===
-			shifts := auth.Group("/shifts")
-			{
-				shifts.GET("", handlers.ListShifts)
-				shifts.GET("/current", handlers.GetCurrentShift)
-				shifts.POST("/open", handlers.OpenShift)
-				shifts.POST("/:id/close", handlers.CloseShift)
-			}
-
-			// === Invoices (Bán hàng) ===
-			invoices := auth.Group("/invoices")
-			{
-				invoices.GET("", handlers.ListInvoices)
-				invoices.POST("", handlers.CreateInvoice)
-				invoices.GET("/:id", handlers.GetInvoice)
-				invoices.PATCH("/:id/cancel", handlers.CancelInvoice)
-			}
-
-			// === Returns (Trả hàng) ===
-			returns := auth.Group("/returns")
-			{
-				returns.GET("", handlers.ListReturns)
-				returns.POST("", handlers.CreateReturn)
-			}
-
-			// === Inventory (Tồn kho) ===
-			auth.GET("/inventory", handlers.ListInventory)
-
-			// === Inventory Checks (Kiểm kê) ===
-			checks := auth.Group("/inventory-checks")
-			{
-				checks.GET("", handlers.ListInventoryChecks)
-				checks.POST("", handlers.CreateInventoryCheck)
-				checks.GET("/:id", handlers.GetInventoryCheck)
-				checks.PUT("/:id/items", handlers.UpdateInventoryCheckItems)
-				checks.POST("/:id/confirm", handlers.ConfirmInventoryCheck)
-			}
-
-			// === Waste (Xuất hủy) ===
-			waste := auth.Group("/waste")
-			{
-				waste.GET("", handlers.ListWaste)
-				waste.POST("", handlers.CreateWaste)
-			}
-
-			// === Customers (Khách hàng) ===
-			customers := auth.Group("/customers")
-			{
-				customers.GET("", handlers.ListCustomers)
-				customers.POST("", handlers.CreateCustomer)
-				customers.GET("/:id", handlers.GetCustomer)
-				customers.PUT("/:id", handlers.UpdateCustomer)
-				customers.POST("/:id/debt-payment", handlers.CreateDebtPayment)
-			}
-
-			// === Debts (Công nợ) ===
-			auth.GET("/debts/summary", handlers.ListDebtSummary)
 		}
 	}
 }

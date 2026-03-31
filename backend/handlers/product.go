@@ -25,11 +25,13 @@ type ProductRequest struct {
 
 // --- Helpers ---
 
-// generateSKU tạo mã SKU tự động: TH0001, TH0002, ...
-func generateSKU() string {
-	var count int64
-	config.DB.Model(&models.Product{}).Count(&count)
-	return fmt.Sprintf("TH%04d", count+1)
+// generateSKU tạo mã SKU tự động dựa trên MAX hiện tại (an toàn hơn COUNT)
+func generateSKU(tx *gorm.DB) string {
+	var maxSKU string
+	tx.Model(&models.Product{}).Select("COALESCE(MAX(sku), 'TH0000')").Scan(&maxSKU)
+	var num int
+	fmt.Sscanf(maxSKU, "TH%d", &num)
+	return fmt.Sprintf("TH%04d", num+1)
 }
 
 // --- Handlers ---
@@ -119,7 +121,7 @@ func CreateProduct(c *gin.Context) {
 	}
 
 	product := models.Product{
-		SKU:         generateSKU(),
+		SKU:         generateSKU(config.DB),
 		Barcode:     req.Barcode,
 		Name:        req.Name,
 		CategoryID:  req.CategoryID,

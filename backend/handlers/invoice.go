@@ -7,23 +7,24 @@ import (
 	"taphoa-management/backend/models"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // --- Request structs ---
 
 type InvoiceItemRequest struct {
 	ProductID uint   `json:"product_id" binding:"required"`
-	Quantity  int    `json:"quantity" binding:"required"`
+	Quantity  int    `json:"quantity" binding:"required,gt=0"`
 	Unit      string `json:"unit" binding:"required"`
 }
 
 type InvoiceRequest struct {
 	CustomerID     *uint                `json:"customer_id"`
-	DiscountAmount int                  `json:"discount_amount"`
+	DiscountAmount int                  `json:"discount_amount" binding:"min=0"`
 	PaymentMethod  string               `json:"payment_method" binding:"required,oneof=cash transfer mixed debt"`
-	CashAmount     int                  `json:"cash_amount"`
-	TransferAmount int                  `json:"transfer_amount"`
-	CashGiven      int                  `json:"cash_given"`
+	CashAmount     int                  `json:"cash_amount" binding:"min=0"`
+	TransferAmount int                  `json:"transfer_amount" binding:"min=0"`
+	CashGiven      int                  `json:"cash_given" binding:"min=0"`
 	Note           *string              `json:"note"`
 	Items          []InvoiceItemRequest `json:"items" binding:"required,min=1"`
 }
@@ -96,7 +97,7 @@ func CreateInvoice(c *gin.Context) {
 				ProductID: item.ProductID,
 				BatchID:   batches[i].ID,
 				Quantity:  deduct,
-				Unit:      item.Unit,
+				Unit:      product.Unit, // FIX 2.1: lưu base unit, nhất quán với Quantity
 				Price:     product.SellPrice,
 				CostPrice: batches[i].CostPrice,
 			})
@@ -118,6 +119,29 @@ func CreateInvoice(c *gin.Context) {
 	}
 
 	finalTotal := total - req.DiscountAmount
+
+	// FIX 2.5: Validate thanh toán đủ
+	switch req.PaymentMethod {
+	case "cash":
+		if req.CashAmount < finalTotal {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Tiền mặt không đủ"})
+			return
+		}
+	case "transfer":
+		if req.TransferAmount < finalTotal {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Tiền chuyển khoản không đủ"})
+			return
+		}
+	case "mixed":
+		if req.CashAmount+req.TransferAmount < finalTotal {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Tổng thanh toán không đủ"})
+			return
+		}
+	}
+
 	changeAmount := 0
 	if req.CashGiven > 0 {
 		changeAmount = req.CashGiven - req.CashAmount
@@ -160,9 +184,8 @@ func CreateInvoice(c *gin.Context) {
 		}
 		tx.Create(&debt)
 
-		// Cập nhật cache tổng nợ
 		tx.Model(&models.Customer{}).Where("id = ?", *req.CustomerID).
-			Update("total_debt", config.DB.Raw("total_debt + ?", finalTotal))
+			Update("total_debt", gorm.Expr("total_debt + ?", finalTotal))
 	}
 
 	tx.Commit()
@@ -205,7 +228,8 @@ func GetInvoice(c *gin.Context) {
 	c.JSON(http.StatusOK, invoice)
 }
 
-// CancelInvoice — hủy đơn → cộng lại tồn kho, xóa nợ nếu có
+// CancelInvoice — hủy đơn → cộng lại tồn kho (trừ phần đã return), xóa nợ nếu có
+// FIX 1.1: Không cho cancel nếu đã có return
 func CancelInvoice(c *gin.Context) {
 	id := c.Param("id")
 
@@ -220,26 +244,34 @@ func CancelInvoice(c *gin.Context) {
 		return
 	}
 
+	// FIX 1.1: Kiểm tra đã có return chưa — nếu có thì không cho cancel
+	var returnCount int64
+	config.DB.Model(&models.Return{}).Where("invoice_id = ? AND status = ?", invoice.ID, "completed").Count(&returnCount)
+	if returnCount > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Đơn hàng đã có trả hàng — không thể hủy"})
+		return
+	}
+
 	tx := config.DB.Begin()
 
 	// Cộng lại tồn kho
 	for _, item := range invoice.Items {
 		tx.Model(&models.ProductBatch{}).Where("id = ?", item.BatchID).
-			Update("quantity", config.DB.Raw("quantity + ?", item.Quantity))
+			Update("quantity", gorm.Expr("quantity + ?", item.Quantity))
 	}
 
 	// Xóa nợ nếu là đơn mua nợ
 	if invoice.PaymentMethod == "debt" && invoice.CustomerID != nil {
 		tx.Where("invoice_id = ?", invoice.ID).Delete(&models.Debt{})
 		tx.Model(&models.Customer{}).Where("id = ?", *invoice.CustomerID).
-			Update("total_debt", config.DB.Raw("total_debt - ?", invoice.FinalTotal))
+			Update("total_debt", gorm.Expr("total_debt - ?", invoice.FinalTotal))
 	}
 
 	// Cập nhật shift
 	tx.Model(&models.Shift{}).Where("id = ?", invoice.ShiftID).
 		Updates(map[string]interface{}{
-			"total_sales":    config.DB.Raw("total_sales - ?", invoice.FinalTotal),
-			"total_invoices": config.DB.Raw("total_invoices - 1"),
+			"total_sales":    gorm.Expr("total_sales - ?", invoice.FinalTotal),
+			"total_invoices": gorm.Expr("total_invoices - 1"),
 		})
 
 	invoice.Status = "cancelled"
