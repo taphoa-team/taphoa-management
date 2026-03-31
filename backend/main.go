@@ -77,7 +77,11 @@ func seedAdmin() {
 		return // đã có user → không seed
 	}
 
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+	// FIX 5.2: Handle bcrypt error
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatal("Failed to hash admin password:", err)
+	}
 	admin := models.User{
 		Name:     "Admin",
 		Phone:    "0999999999",
@@ -85,5 +89,6 @@ func seedAdmin() {
 		Role:     "admin",
 	}
 	config.DB.Create(&admin)
-	log.Println("Seeded default admin: 0999999999 / admin123")
+	// FIX 3.5: Không log password
+	log.Println("Seeded default admin account (phone: 0999999999)")
 }

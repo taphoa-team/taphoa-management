@@ -7,6 +7,7 @@ import (
 	"taphoa-management/backend/models"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type WasteRequest struct {
@@ -38,11 +39,6 @@ func CreateWaste(c *gin.Context) {
 		return
 	}
 
-	if batch.Quantity < req.Quantity {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Lô hàng không đủ số lượng để hủy"})
-		return
-	}
-
 	userID, _ := c.Get("user_id")
 
 	tx := config.DB.Begin()
@@ -57,9 +53,15 @@ func CreateWaste(c *gin.Context) {
 	}
 	tx.Create(&waste)
 
-	// Trừ tồn kho
-	batch.Quantity -= req.Quantity
-	tx.Save(&batch)
+	// FIX N3: Atomic deduction + check RowsAffected
+	result := tx.Model(&models.ProductBatch{}).
+		Where("id = ? AND product_id = ? AND quantity >= ?", req.BatchID, req.ProductID, req.Quantity).
+		Update("quantity", gorm.Expr("quantity - ?", req.Quantity))
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Lô hàng không đủ số lượng để hủy"})
+		return
+	}
 
 	tx.Commit()
 

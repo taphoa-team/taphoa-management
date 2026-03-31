@@ -27,20 +27,23 @@ func CreateInventoryCheck(c *gin.Context) {
 	}
 	c.ShouldBindJSON(&req)
 
+	// FIX N2: Wrap trong transaction
+	tx := config.DB.Begin()
+
 	check := models.InventoryCheck{
 		UserID: userID.(uint),
 		Status: "draft",
 		Note:   req.Note,
 	}
-	config.DB.Create(&check)
+	tx.Create(&check)
 
-	// FIX 3.2: Một query lấy tất cả stock
+	// FIX 3.2: Batch query cho stock
 	type stockResult struct {
 		ProductID uint
 		Total     int
 	}
 	var stocks []stockResult
-	config.DB.Model(&models.ProductBatch{}).
+	tx.Model(&models.ProductBatch{}).
 		Select("product_id, COALESCE(SUM(quantity), 0) as total").
 		Group("product_id").
 		Find(&stocks)
@@ -51,19 +54,25 @@ func CreateInventoryCheck(c *gin.Context) {
 	}
 
 	var products []models.Product
-	config.DB.Where("is_active = ?", true).Find(&products)
+	tx.Where("is_active = ?", true).Find(&products)
 
+	// FIX 3.2: Batch insert thay vì N+1
+	var items []models.InventoryCheckItem
 	for _, p := range products {
 		stock := stockMap[p.ID]
-		item := models.InventoryCheckItem{
+		items = append(items, models.InventoryCheckItem{
 			CheckID:        check.ID,
 			ProductID:      p.ID,
 			SystemQuantity: stock,
-			ActualQuantity: stock, // mặc định = system, NV sửa sau
+			ActualQuantity: stock,
 			Difference:     0,
-		}
-		config.DB.Create(&item)
+		})
 	}
+	if len(items) > 0 {
+		tx.Create(&items)
+	}
+
+	tx.Commit()
 
 	config.DB.Preload("User").Preload("Items.Product").First(&check, check.ID)
 	c.JSON(http.StatusCreated, check)

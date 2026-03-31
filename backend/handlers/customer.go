@@ -132,9 +132,14 @@ func CreateDebtPayment(c *gin.Context) {
 	}
 	tx.Create(&debt)
 
-	// FIX 2.10: Atomic update thay vì read-modify-write
-	tx.Model(&models.Customer{}).Where("id = ? AND total_debt >= ?", customer.ID, req.Amount).
+	// FIX 2.10: Atomic update + check RowsAffected
+	result := tx.Model(&models.Customer{}).Where("id = ? AND total_debt >= ?", customer.ID, req.Amount).
 		Update("total_debt", gorm.Expr("total_debt - ?", req.Amount))
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		c.JSON(http.StatusConflict, gin.H{"error": "Nợ đã thay đổi, vui lòng thử lại"})
+		return
+	}
 
 	tx.Commit()
 

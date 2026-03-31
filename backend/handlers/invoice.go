@@ -97,15 +97,22 @@ func CreateInvoice(c *gin.Context) {
 				ProductID: item.ProductID,
 				BatchID:   batches[i].ID,
 				Quantity:  deduct,
-				Unit:      product.Unit, // FIX 2.1: lưu base unit, nhất quán với Quantity
+				Unit:      product.Unit,
 				Price:     product.SellPrice,
 				CostPrice: batches[i].CostPrice,
 			})
 
 			total += product.SellPrice * deduct
 
-			batches[i].Quantity -= deduct
-			tx.Save(&batches[i])
+			// FIX N4: Atomic deduction thay vì read-modify-write
+			result := tx.Model(&models.ProductBatch{}).
+				Where("id = ? AND quantity >= ?", batches[i].ID, deduct).
+				Update("quantity", gorm.Expr("quantity - ?", deduct))
+			if result.RowsAffected == 0 {
+				tx.Rollback()
+				c.JSON(http.StatusConflict, gin.H{"error": "Tồn kho đã thay đổi, vui lòng thử lại"})
+				return
+			}
 			remaining -= deduct
 		}
 
@@ -169,10 +176,12 @@ func CreateInvoice(c *gin.Context) {
 		return
 	}
 
-	// Cập nhật shift
-	shift.TotalSales += finalTotal
-	shift.TotalInvoices++
-	tx.Save(&shift)
+	// FIX N1: Atomic shift update
+	tx.Model(&models.Shift{}).Where("id = ?", shift.ID).
+		Updates(map[string]interface{}{
+			"total_sales":    gorm.Expr("total_sales + ?", finalTotal),
+			"total_invoices": gorm.Expr("total_invoices + 1"),
+		})
 
 	// Ghi nợ nếu mua nợ
 	if req.PaymentMethod == "debt" && req.CustomerID != nil {

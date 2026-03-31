@@ -25,7 +25,7 @@ func OpenShift(c *gin.Context) {
 	}
 
 	var req struct {
-		OpeningCash int `json:"opening_cash" binding:"required"`
+		OpeningCash int `json:"opening_cash" binding:"min=0"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Nhập số tiền đầu ca"})

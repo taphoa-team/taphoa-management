@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"taphoa-management/backend/config"
 	"taphoa-management/backend/models"
@@ -17,7 +18,7 @@ type ProductRequest struct {
 	Barcode     *string `json:"barcode"`
 	Name        string  `json:"name" binding:"required"`
 	CategoryID  uint    `json:"category_id" binding:"required"`
-	SellPrice   int     `json:"sell_price" binding:"required"`
+	SellPrice   int     `json:"sell_price" binding:"required,gt=0"`
 	MinQuantity int     `json:"min_quantity"`
 	HasExpiry   bool    `json:"has_expiry"`
 	Unit        string  `json:"unit" binding:"required"`
@@ -32,6 +33,24 @@ func generateSKU(tx *gorm.DB) string {
 	var num int
 	fmt.Sscanf(maxSKU, "TH%d", &num)
 	return fmt.Sprintf("TH%04d", num+1)
+}
+
+// FIX 3.3: Shared helper cho stock calculation
+func getStockMap(db *gorm.DB) map[uint]int {
+	type stockResult struct {
+		ProductID uint
+		Total     int
+	}
+	var stocks []stockResult
+	db.Model(&models.ProductBatch{}).
+		Select("product_id, COALESCE(SUM(quantity), 0) as total").
+		Group("product_id").Find(&stocks)
+
+	stockMap := make(map[uint]int)
+	for _, s := range stocks {
+		stockMap[s.ProductID] = s.Total
+	}
+	return stockMap
 }
 
 // --- Handlers ---
@@ -54,21 +73,7 @@ func ListProducts(c *gin.Context) {
 
 	query.Order("name").Find(&products)
 
-	// Tính tồn kho cho mỗi SP từ batches
-	type stockResult struct {
-		ProductID uint `json:"product_id"`
-		Total     int  `json:"total"`
-	}
-	var stocks []stockResult
-	config.DB.Model(&models.ProductBatch{}).
-		Select("product_id, COALESCE(SUM(quantity), 0) as total").
-		Group("product_id").
-		Find(&stocks)
-
-	stockMap := make(map[uint]int)
-	for _, s := range stocks {
-		stockMap[s.ProductID] = s.Total
-	}
+	stockMap := getStockMap(config.DB)
 
 	// Trả về kèm tồn kho
 	type ProductWithStock struct {
@@ -120,21 +125,28 @@ func CreateProduct(c *gin.Context) {
 		req.MinQuantity = 5
 	}
 
-	product := models.Product{
-		SKU:         generateSKU(config.DB),
-		Barcode:     req.Barcode,
-		Name:        req.Name,
-		CategoryID:  req.CategoryID,
-		SellPrice:   req.SellPrice,
-		MinQuantity: req.MinQuantity,
-		HasExpiry:   req.HasExpiry,
-		Unit:        req.Unit,
-		IsActive:    true,
-	}
-
-	if err := config.DB.Create(&product).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tạo được sản phẩm"})
-		return
+	// FIX 1.3: Retry on duplicate SKU
+	var product models.Product
+	for retries := 0; retries < 3; retries++ {
+		product = models.Product{
+			SKU:         generateSKU(config.DB),
+			Barcode:     req.Barcode,
+			Name:        req.Name,
+			CategoryID:  req.CategoryID,
+			SellPrice:   req.SellPrice,
+			MinQuantity: req.MinQuantity,
+			HasExpiry:   req.HasExpiry,
+			Unit:        req.Unit,
+			IsActive:    true,
+		}
+		if err := config.DB.Create(&product).Error; err != nil {
+			if strings.Contains(err.Error(), "duplicate") {
+				continue
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tạo được sản phẩm"})
+			return
+		}
+		break
 	}
 
 	// Load category để trả về
@@ -286,20 +298,7 @@ func ListInventory(c *gin.Context) {
 	var products []models.Product
 	config.DB.Preload("Category").Where("is_active = ?", true).Order("name").Find(&products)
 
-	type stockResult struct {
-		ProductID uint
-		Total     int
-	}
-	var stocks []stockResult
-	config.DB.Model(&models.ProductBatch{}).
-		Select("product_id, COALESCE(SUM(quantity), 0) as total").
-		Group("product_id").
-		Find(&stocks)
-
-	stockMap := make(map[uint]int)
-	for _, s := range stocks {
-		stockMap[s.ProductID] = s.Total
-	}
+	stockMap := getStockMap(config.DB)
 
 	type InventoryItem struct {
 		models.Product
