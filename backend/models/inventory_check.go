@@ -17,8 +17,8 @@ type InventoryCheck struct {
 
 type InventoryCheckItem struct {
 	ID             uint    `json:"id" gorm:"primaryKey"`
-	CheckID        uint    `json:"check_id" gorm:"not null;index"`
-	ProductID      uint    `json:"product_id" gorm:"not null"`
+	CheckID        uint    `json:"check_id" gorm:"not null;index:idx_check_product,priority:1"`
+	ProductID      uint    `json:"product_id" gorm:"not null;index:idx_check_product,priority:2"`
 	Product        Product `json:"product,omitempty" gorm:"foreignKey:ProductID"`
 	SystemQuantity int     `json:"system_quantity" gorm:"not null"` // số trên hệ thống
 	ActualQuantity int     `json:"actual_quantity" gorm:"not null"` // số đếm thực tế

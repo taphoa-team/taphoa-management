@@ -2,12 +2,15 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"taphoa-management/backend/config"
 	"taphoa-management/backend/models"
 	"taphoa-management/backend/routes"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -45,14 +48,52 @@ func main() {
 	}
 	log.Println("Database migrated")
 
+	// Seed admin mặc định — chỉ tạo nếu chưa có
+	seedAdmin()
+
 	// Khởi tạo router
 	r := gin.Default()
+
+	// FIX 2.6 + R12: CORS cho frontend, đọc từ env
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3001"
+	}
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{frontendURL},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+		AllowHeaders:     []string{"Authorization", "Content-Type"},
+		AllowCredentials: true,
+	}))
 
 	// Đăng ký routes
 	routes.SetupRoutes(r)
 
-	// Chạy server trên port 8080
+	// Chạy server trên port 8082
 	port := "8082"
 	log.Println("Server running on http://localhost:" + port)
 	r.Run(":" + port)
+}
+
+func seedAdmin() {
+	var count int64
+	config.DB.Model(&models.User{}).Count(&count)
+	if count > 0 {
+		return // đã có user → không seed
+	}
+
+	// FIX 5.2: Handle bcrypt error
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatal("Failed to hash admin password:", err)
+	}
+	admin := models.User{
+		Name:     "Admin",
+		Phone:    "0999999999",
+		Password: string(hashedPassword),
+		Role:     "admin",
+	}
+	config.DB.Create(&admin)
+	// FIX 3.5: Không log password
+	log.Println("Seeded default admin account (phone: 0999999999)")
 }
