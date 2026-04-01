@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"taphoa-management/backend/config"
@@ -35,16 +36,20 @@ func generateSKU(tx *gorm.DB) string {
 	return fmt.Sprintf("TH%04d", num+1)
 }
 
-// FIX 3.3: Shared helper cho stock calculation
-func getStockMap(db *gorm.DB) map[uint]int {
+// FIX 3.3 + R5: Shared helper cho stock calculation, hỗ trợ filter theo product IDs
+func getStockMap(db *gorm.DB, productIDs ...[]uint) map[uint]int {
 	type stockResult struct {
 		ProductID uint
 		Total     int
 	}
 	var stocks []stockResult
-	db.Model(&models.ProductBatch{}).
+	query := db.Model(&models.ProductBatch{}).
 		Select("product_id, COALESCE(SUM(quantity), 0) as total").
-		Group("product_id").Find(&stocks)
+		Group("product_id")
+	if len(productIDs) > 0 && len(productIDs[0]) > 0 {
+		query = query.Where("product_id IN ?", productIDs[0])
+	}
+	query.Find(&stocks)
 
 	stockMap := make(map[uint]int)
 	for _, s := range stocks {
@@ -66,14 +71,23 @@ func ListProducts(c *gin.Context) {
 		query = query.Where("name ILIKE ? OR sku ILIKE ? OR barcode ILIKE ?", like, like, like)
 	}
 
-	// Lọc theo nhóm hàng
+	// FIX R18: Validate category_id là số
 	if categoryID := c.Query("category_id"); categoryID != "" {
+		if _, err := strconv.ParseUint(categoryID, 10, 32); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "category_id không hợp lệ"})
+			return
+		}
 		query = query.Where("category_id = ?", categoryID)
 	}
 
 	query.Scopes(paginate(c)).Order("name").Find(&products)
 
-	stockMap := getStockMap(config.DB)
+	// FIX R5: Chỉ fetch stock cho products trong trang hiện tại
+	var productIDs []uint
+	for _, p := range products {
+		productIDs = append(productIDs, p.ID)
+	}
+	stockMap := getStockMap(config.DB, productIDs)
 
 	// Trả về kèm tồn kho
 	type ProductWithStock struct {
@@ -128,8 +142,9 @@ func CreateProduct(c *gin.Context) {
 		req.MinQuantity = 5
 	}
 
-	// FIX 1.3: Retry on duplicate SKU
+	// FIX 1.3 + R1: Retry on duplicate SKU, trả lỗi nếu 3 lần đều fail
 	var product models.Product
+	var created bool
 	for retries := 0; retries < 3; retries++ {
 		product = models.Product{
 			SKU:         generateSKU(config.DB),
@@ -149,7 +164,12 @@ func CreateProduct(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tạo được sản phẩm"})
 			return
 		}
+		created = true
 		break
+	}
+	if !created {
+		c.JSON(http.StatusConflict, gin.H{"error": "Không tạo được SKU, vui lòng thử lại"})
+		return
 	}
 
 	// Load category để trả về
@@ -197,7 +217,11 @@ func UpdateProduct(c *gin.Context) {
 	product.HasExpiry = req.HasExpiry
 	product.Unit = req.Unit
 
-	config.DB.Save(&product)
+	// FIX 4.3: Check error khi save
+	if err := config.DB.Save(&product).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không cập nhật được sản phẩm"})
+		return
+	}
 	config.DB.Preload("Category").First(&product, product.ID)
 
 	c.JSON(http.StatusOK, product)
@@ -263,14 +287,24 @@ func CreateUnitConversion(c *gin.Context) {
 		ToUnit:         req.ToUnit,
 		ConversionRate: req.ConversionRate,
 	}
-	config.DB.Create(&conversion)
+	// FIX 4.3: Check error khi create
+	if err := config.DB.Create(&conversion).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tạo được quy đổi"})
+		return
+	}
 
 	c.JSON(http.StatusCreated, conversion)
 }
 
 // UpdateUnitConversion — sửa quy đổi
+// FIX R7: Validate convId là số
 func UpdateUnitConversion(c *gin.Context) {
-	convID := c.Param("convId")
+	cid, err := strconv.ParseUint(c.Param("convId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
+		return
+	}
+	convID := uint(cid)
 
 	var conversion models.UnitConversion
 	if err := config.DB.First(&conversion, convID).Error; err != nil {
@@ -293,8 +327,14 @@ func UpdateUnitConversion(c *gin.Context) {
 }
 
 // DeleteUnitConversion — xóa quy đổi
+// FIX R7: Validate convId là số
 func DeleteUnitConversion(c *gin.Context) {
-	convID := c.Param("convId")
+	cid, err := strconv.ParseUint(c.Param("convId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
+		return
+	}
+	convID := uint(cid)
 
 	var conversion models.UnitConversion
 	if err := config.DB.First(&conversion, convID).Error; err != nil {
@@ -313,7 +353,12 @@ func ListInventory(c *gin.Context) {
 	var products []models.Product
 	config.DB.Preload("Category").Where("is_active = ?", true).Scopes(paginate(c)).Order("name").Find(&products)
 
-	stockMap := getStockMap(config.DB)
+	// FIX R5: Chỉ fetch stock cho products trong trang hiện tại
+	var pIDs []uint
+	for _, p := range products {
+		pIDs = append(pIDs, p.ID)
+	}
+	stockMap := getStockMap(config.DB, pIDs)
 
 	type InventoryItem struct {
 		models.Product

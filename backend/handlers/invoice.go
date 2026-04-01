@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"taphoa-management/backend/config"
 	"taphoa-management/backend/models"
@@ -149,8 +150,14 @@ func CreateInvoice(c *gin.Context) {
 		}
 	}
 
+	// FIX R16: Validate CashGiven >= CashAmount
 	changeAmount := 0
 	if req.CashGiven > 0 {
+		if req.CashGiven < req.CashAmount {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Tiền khách đưa không đủ"})
+			return
+		}
 		changeAmount = req.CashGiven - req.CashAmount
 	}
 
@@ -212,7 +219,12 @@ func ListInvoices(c *gin.Context) {
 	if date := c.Query("date"); date != "" {
 		query = query.Where("DATE(created_at) = ?", date)
 	}
+	// FIX R18: Validate shift_id là số
 	if shiftID := c.Query("shift_id"); shiftID != "" {
+		if _, err := strconv.ParseUint(shiftID, 10, 32); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "shift_id không hợp lệ"})
+			return
+		}
 		query = query.Where("shift_id = ?", shiftID)
 	}
 	if status := c.Query("status"); status != "" {
@@ -276,10 +288,31 @@ func CancelInvoice(c *gin.Context) {
 	}
 
 	// Xóa nợ nếu là đơn mua nợ
+	// FIX R8: Block cancel nếu khách đã trả nợ 1 phần (total_debt < FinalTotal)
 	if invoice.PaymentMethod == "debt" && invoice.CustomerID != nil {
+		var customer models.Customer
+		if err := tx.First(&customer, *invoice.CustomerID).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tìm thấy khách hàng"})
+			return
+		}
+		if customer.TotalDebt < invoice.FinalTotal {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Không thể hủy — khách đã trả nợ 1 phần. Tạo phiếu trả hàng thay thế.",
+			})
+			return
+		}
+
 		tx.Where("invoice_id = ?", invoice.ID).Delete(&models.Debt{})
-		tx.Model(&models.Customer{}).Where("id = ?", *invoice.CustomerID).
+		result := tx.Model(&models.Customer{}).
+			Where("id = ? AND total_debt >= ?", *invoice.CustomerID, invoice.FinalTotal).
 			Update("total_debt", gorm.Expr("total_debt - ?", invoice.FinalTotal))
+		if result.RowsAffected == 0 {
+			tx.Rollback()
+			c.JSON(http.StatusConflict, gin.H{"error": "Nợ đã thay đổi, vui lòng thử lại"})
+			return
+		}
 	}
 
 	// Cập nhật shift

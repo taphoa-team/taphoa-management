@@ -45,9 +45,9 @@ func GetCustomer(c *gin.Context) {
 	var invoices []models.Invoice
 	config.DB.Where("customer_id = ?", id).Order("created_at DESC").Limit(20).Find(&invoices)
 
-	// Lịch sử công nợ
+	// FIX R11: Giới hạn lịch sử công nợ
 	var debts []models.Debt
-	config.DB.Where("customer_id = ?", id).Order("created_at DESC").Find(&debts)
+	config.DB.Where("customer_id = ?", id).Order("created_at DESC").Limit(50).Find(&debts)
 
 	c.JSON(http.StatusOK, gin.H{
 		"customer": customer,
@@ -68,7 +68,11 @@ func CreateCustomer(c *gin.Context) {
 		Phone:   req.Phone,
 		Address: req.Address,
 	}
-	config.DB.Create(&customer)
+	// FIX 4.3: Check error khi create
+	if err := config.DB.Create(&customer).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tạo được khách hàng"})
+		return
+	}
 
 	c.JSON(http.StatusCreated, customer)
 }
@@ -94,7 +98,11 @@ func UpdateCustomer(c *gin.Context) {
 	customer.Name = req.Name
 	customer.Phone = req.Phone
 	customer.Address = req.Address
-	config.DB.Save(&customer)
+	// FIX 4.3: Check error khi save
+	if err := config.DB.Save(&customer).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không cập nhật được khách hàng"})
+		return
+	}
 
 	c.JSON(http.StatusOK, customer)
 }
@@ -165,6 +173,7 @@ func CreateDebtPayment(c *gin.Context) {
 // ListDebtSummary — tất cả khách đang nợ
 func ListDebtSummary(c *gin.Context) {
 	var customers []models.Customer
-	config.DB.Where("total_debt > 0").Order("total_debt DESC").Find(&customers)
+	// FIX R10: Thêm pagination
+	config.DB.Where("total_debt > 0").Scopes(paginate(c)).Order("total_debt DESC").Find(&customers)
 	c.JSON(http.StatusOK, customers)
 }

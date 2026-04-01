@@ -78,14 +78,21 @@ func DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	// Kiểm tra có sản phẩm nào thuộc nhóm này không
+	// FIX R17: Dùng transaction cho COUNT+DELETE
+	tx := config.DB.Begin()
 	var count int64
-	config.DB.Model(&models.Product{}).Where("category_id = ?", id).Count(&count)
+	tx.Model(&models.Product{}).Where("category_id = ?", id).Count(&count)
 	if count > 0 {
+		tx.Rollback()
 		c.JSON(http.StatusConflict, gin.H{"error": "Không xóa được — còn sản phẩm trong nhóm này"})
 		return
 	}
 
-	config.DB.Delete(&category)
+	if err := tx.Delete(&category).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusConflict, gin.H{"error": "Không xóa được — có dữ liệu liên quan"})
+		return
+	}
+	tx.Commit()
 	c.JSON(http.StatusOK, gin.H{"message": "Đã xóa nhóm hàng"})
 }

@@ -104,15 +104,22 @@ func UpdateInventoryCheckItems(c *gin.Context) {
 		return
 	}
 
+	// FIX R9: Wrap trong transaction
+	tx := config.DB.Begin()
 	for _, item := range req.Items {
-		config.DB.Model(&models.InventoryCheckItem{}).
+		if err := tx.Model(&models.InventoryCheckItem{}).
 			Where("check_id = ? AND product_id = ?", check.ID, item.ProductID).
 			Updates(map[string]interface{}{
 				"actual_quantity": item.ActualQuantity,
 				"difference":     gorm.Expr("? - system_quantity", item.ActualQuantity),
 				"note":           item.Note,
-			})
+			}).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi cập nhật kiểm kê"})
+			return
+		}
 	}
+	tx.Commit()
 
 	config.DB.Preload("Items.Product").First(&check, check.ID)
 	c.JSON(http.StatusOK, check)
@@ -145,7 +152,7 @@ func ConfirmInventoryCheck(c *gin.Context) {
 		}
 
 		if item.Difference < 0 {
-			// FIX 2.7: Trừ qua nhiều batch nếu cần
+			// FIX 2.7 + R4: Trừ qua nhiều batch, dùng atomic update
 			remaining := -item.Difference
 			var batches []models.ProductBatch
 			tx.Where("product_id = ? AND quantity > 0", item.ProductID).
@@ -158,16 +165,21 @@ func ConfirmInventoryCheck(c *gin.Context) {
 				if deduct > remaining {
 					deduct = remaining
 				}
-				batches[i].Quantity -= deduct
-				tx.Save(&batches[i])
+				result := tx.Model(&models.ProductBatch{}).
+					Where("id = ? AND quantity >= ?", batches[i].ID, deduct).
+					Update("quantity", gorm.Expr("quantity - ?", deduct))
+				if result.RowsAffected == 0 {
+					tx.Rollback()
+					c.JSON(http.StatusConflict, gin.H{"error": "Tồn kho đã thay đổi, vui lòng thử lại"})
+					return
+				}
 				remaining -= deduct
 			}
 		} else {
-			// Cộng vào batch mới nhất hoặc tạo adjustment batch
+			// FIX R4: Cộng vào batch mới nhất hoặc tạo adjustment batch (atomic)
 			var batch models.ProductBatch
 			if err := tx.Where("product_id = ? AND quantity > 0", item.ProductID).
 				Order("created_at DESC").First(&batch).Error; err != nil {
-				// Không có batch → tạo mới
 				newBatch := models.ProductBatch{
 					ProductID:  item.ProductID,
 					CostPrice:  0,
@@ -176,8 +188,8 @@ func ConfirmInventoryCheck(c *gin.Context) {
 				}
 				tx.Create(&newBatch)
 			} else {
-				batch.Quantity += item.Difference
-				tx.Save(&batch)
+				tx.Model(&models.ProductBatch{}).Where("id = ?", batch.ID).
+					Update("quantity", gorm.Expr("quantity + ?", item.Difference))
 			}
 		}
 	}
@@ -196,7 +208,8 @@ func ConfirmInventoryCheck(c *gin.Context) {
 // ListInventoryChecks — danh sách đợt kiểm kê
 func ListInventoryChecks(c *gin.Context) {
 	var checks []models.InventoryCheck
-	config.DB.Preload("User").Order("created_at DESC").Limit(20).Find(&checks)
+	// FIX R6: Dùng paginate thay vì hardcode Limit(20)
+	config.DB.Preload("User").Scopes(paginate(c)).Order("created_at DESC").Find(&checks)
 	c.JSON(http.StatusOK, checks)
 }
 

@@ -17,13 +17,6 @@ import (
 func OpenShift(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
-	// Kiểm tra đã có ca đang mở chưa
-	var existing models.Shift
-	if err := config.DB.Where("user_id = ? AND closed_at IS NULL", userID).First(&existing).Error; err == nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "Đang có ca mở rồi — đóng ca cũ trước"})
-		return
-	}
-
 	var req struct {
 		OpeningCash int `json:"opening_cash" binding:"min=0"`
 	}
@@ -32,14 +25,30 @@ func OpenShift(c *gin.Context) {
 		return
 	}
 
+	// FIX R14: Dùng SELECT FOR UPDATE để tránh race condition tạo 2 ca mở
+	tx := config.DB.Begin()
+	var existing models.Shift
+	if err := tx.Raw("SELECT id FROM shifts WHERE user_id = ? AND closed_at IS NULL FOR UPDATE", userID).
+		Scan(&existing).Error; err == nil && existing.ID > 0 {
+		tx.Rollback()
+		c.JSON(http.StatusConflict, gin.H{"error": "Đang có ca mở rồi — đóng ca cũ trước"})
+		return
+	}
+
 	shift := models.Shift{
 		UserID:      userID.(uint),
 		OpeningCash: req.OpeningCash,
 		OpenedAt:    time.Now(),
 	}
-	config.DB.Create(&shift)
-	config.DB.Preload("User").First(&shift, shift.ID)
+	// FIX 4.3: Check error khi create
+	if err := tx.Create(&shift).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không mở được ca"})
+		return
+	}
+	tx.Commit()
 
+	config.DB.Preload("User").First(&shift, shift.ID)
 	c.JSON(http.StatusCreated, shift)
 }
 
@@ -79,15 +88,22 @@ func CloseShift(c *gin.Context) {
 		return
 	}
 
-	// Tính tiền mặt lý thuyết = opening + tổng tiền mặt bán được trong ca
+	// Tính tiền mặt lý thuyết = opening + tổng tiền mặt bán được - cash refunds
 	var cashSales int
 	config.DB.Model(&models.Invoice{}).
 		Where("shift_id = ? AND status = ?", shift.ID, "completed").
 		Select("COALESCE(SUM(cash_amount), 0)").
 		Scan(&cashSales)
 
+	// FIX N5: Trừ cash refunds từ returns trong ca
+	var cashRefunds int
+	config.DB.Model(&models.Return{}).
+		Joins("JOIN invoices ON invoices.id = returns.invoice_id").
+		Where("invoices.shift_id = ? AND invoices.payment_method IN ('cash','mixed')", shift.ID).
+		Select("COALESCE(SUM(returns.total_refund), 0)").Scan(&cashRefunds)
+
 	now := time.Now()
-	expectedCash := shift.OpeningCash + cashSales
+	expectedCash := shift.OpeningCash + cashSales - cashRefunds
 	difference := req.ClosingCash - expectedCash
 
 	shift.ClosingCash = &req.ClosingCash
@@ -95,7 +111,11 @@ func CloseShift(c *gin.Context) {
 	shift.Difference = &difference
 	shift.Note = req.Note
 	shift.ClosedAt = &now
-	config.DB.Save(&shift)
+	// FIX 4.3: Check error khi save
+	if err := config.DB.Save(&shift).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không đóng được ca"})
+		return
+	}
 	config.DB.Preload("User").First(&shift, shift.ID)
 
 	c.JSON(http.StatusOK, shift)

@@ -18,7 +18,8 @@ type SupplierRequest struct {
 
 func ListSuppliers(c *gin.Context) {
 	var suppliers []models.Supplier
-	config.DB.Order("name").Find(&suppliers)
+	// FIX R10: Thêm pagination
+	config.DB.Scopes(paginate(c)).Order("name").Find(&suppliers)
 	c.JSON(http.StatusOK, suppliers)
 }
 
@@ -35,7 +36,11 @@ func CreateSupplier(c *gin.Context) {
 		Address: req.Address,
 		Note:    req.Note,
 	}
-	config.DB.Create(&supplier)
+	// FIX 4.3: Check error khi create
+	if err := config.DB.Create(&supplier).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tạo được nhà cung cấp"})
+		return
+	}
 
 	c.JSON(http.StatusCreated, supplier)
 }
@@ -62,7 +67,11 @@ func UpdateSupplier(c *gin.Context) {
 	supplier.Phone = req.Phone
 	supplier.Address = req.Address
 	supplier.Note = req.Note
-	config.DB.Save(&supplier)
+	// FIX 4.3: Check error khi save
+	if err := config.DB.Save(&supplier).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không cập nhật được nhà cung cấp"})
+		return
+	}
 
 	c.JSON(http.StatusOK, supplier)
 }
@@ -79,14 +88,21 @@ func DeleteSupplier(c *gin.Context) {
 		return
 	}
 
-	// Kiểm tra có đơn nhập nào từ NCC này không
+	// FIX R17: Dùng transaction cho COUNT+DELETE
+	tx := config.DB.Begin()
 	var count int64
-	config.DB.Model(&models.PurchaseOrder{}).Where("supplier_id = ?", id).Count(&count)
+	tx.Model(&models.PurchaseOrder{}).Where("supplier_id = ?", id).Count(&count)
 	if count > 0 {
+		tx.Rollback()
 		c.JSON(http.StatusConflict, gin.H{"error": "Không xóa được — đã có đơn nhập từ NCC này"})
 		return
 	}
 
-	config.DB.Delete(&supplier)
+	if err := tx.Delete(&supplier).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusConflict, gin.H{"error": "Không xóa được — có dữ liệu liên quan"})
+		return
+	}
+	tx.Commit()
 	c.JSON(http.StatusOK, gin.H{"message": "Đã xóa nhà cung cấp"})
 }

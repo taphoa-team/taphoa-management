@@ -64,11 +64,22 @@ func CreateReturn(c *gin.Context) {
 	}
 
 	// FIX 2.3: Validate từng item
+	// FIX R15: Validate refundPrice <= giá bán gốc
+	priceMap := make(map[[2]uint]int)
+	for _, ii := range invoice.Items {
+		key := [2]uint{ii.ProductID, ii.BatchID}
+		priceMap[key] = ii.Price
+	}
+
 	for _, item := range req.Items {
 		key := [2]uint{item.ProductID, item.BatchID}
 		available := soldMap[key] - returnedMap[key]
 		if item.Quantity > available {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Vượt quá số lượng cho phép trả"})
+			return
+		}
+		if originalPrice, ok := priceMap[key]; ok && item.RefundPrice > originalPrice {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Giá hoàn không được cao hơn giá bán gốc"})
 			return
 		}
 	}
@@ -116,16 +127,21 @@ func CreateReturn(c *gin.Context) {
 		})
 
 	// Nếu đơn gốc là mua nợ → trừ nợ
+	// FIX R3: Chỉ tạo debt record khi total_debt thực sự giảm
 	if invoice.PaymentMethod == "debt" && invoice.CustomerID != nil {
-		debt := models.Debt{
-			CustomerID: *invoice.CustomerID,
-			Type:       "payment",
-			Amount:     totalRefund,
-		}
-		tx.Create(&debt)
-		// FIX N6: Guard against negative debt
-		tx.Model(&models.Customer{}).Where("id = ? AND total_debt >= ?", *invoice.CustomerID, totalRefund).
+		result := tx.Model(&models.Customer{}).
+			Where("id = ? AND total_debt >= ?", *invoice.CustomerID, totalRefund).
 			Update("total_debt", gorm.Expr("total_debt - ?", totalRefund))
+
+		if result.RowsAffected > 0 {
+			debt := models.Debt{
+				CustomerID: *invoice.CustomerID,
+				Type:       "payment",
+				Amount:     totalRefund,
+			}
+			tx.Create(&debt)
+		}
+		// Nếu total_debt < totalRefund → không tạo debt record, tránh inconsistency
 	}
 
 	tx.Commit()

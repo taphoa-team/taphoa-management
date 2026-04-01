@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"taphoa-management/backend/config"
 	"taphoa-management/backend/models"
@@ -53,9 +54,13 @@ func main() {
 	// Khởi tạo router
 	r := gin.Default()
 
-	// FIX 2.6: CORS cho frontend
+	// FIX 2.6 + R12: CORS cho frontend, đọc từ env
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3001"
+	}
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3001"},
+		AllowOrigins:     []string{frontendURL},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
 		AllowHeaders:     []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,
