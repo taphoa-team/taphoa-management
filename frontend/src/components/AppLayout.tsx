@@ -14,6 +14,7 @@ import {
   LogoutOutlined,
   DashboardOutlined,
   ClockCircleOutlined,
+  AlertOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,6 +25,7 @@ const { Header, Content } = Layout;
 
 const menuItems: MenuProps['items'] = [
   { key: '/', icon: <DashboardOutlined />, label: 'Tổng quan' },
+  { key: '/alerts', icon: <AlertOutlined />, label: 'Cảnh báo' },
   { key: '/pos', icon: <ShoppingCartOutlined />, label: 'Bán hàng' },
   {
     key: 'sales',

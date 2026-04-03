@@ -22,6 +22,7 @@ import WastePage from './pages/WastePage';
 import InventoryChecksPage from './pages/InventoryChecksPage';
 import DebtsPage from './pages/DebtsPage';
 import POSPage from './pages/POSPage';
+import AlertsPage from './pages/AlertsPage';
 import { Agentation } from 'agentation';
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
               }
             >
               <Route path="/" element={<DashboardPage />} />
+              <Route path="/alerts" element={<AlertsPage />} />
               <Route path="/invoices" element={<InvoicesPage />} />
               <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
               <Route path="/shifts" element={<ShiftsPage />} />
