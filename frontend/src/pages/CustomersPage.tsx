@@ -12,9 +12,16 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [form] = Form.useForm();
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => { setSearch(searchInput); setPage(1); }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
@@ -81,8 +88,8 @@ export default function CustomersPage() {
         <Typography.Title level={4} style={{ margin: 0 }}>Khách hàng</Typography.Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm KH</Button>
       </div>
-      <Input prefix={<SearchOutlined />} placeholder="Tìm tên, SĐT..." value={search}
-        onChange={(e) => { setSearch(e.target.value); setPage(1); }} allowClear style={{ width: 280, marginBottom: 16 }} />
+      <Input prefix={<SearchOutlined />} placeholder="Tìm tên, SĐT..." value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)} allowClear style={{ width: 280, marginBottom: 16 }} />
       <Table dataSource={customers} columns={columns} rowKey="id" loading={loading}
         pagination={{ current: page, pageSize: 20, onChange: setPage, showSizeChanger: false }} size="middle" />
       <Modal title={editing ? 'Sửa khách hàng' : 'Thêm khách hàng'} open={modalOpen}

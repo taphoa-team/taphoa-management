@@ -13,10 +13,17 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<ProductWithStock | null>(null);
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<number | undefined>();
   const [page, setPage] = useState(1);
   const [form] = Form.useForm();
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => { setSearch(searchInput); setPage(1); }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -203,8 +210,8 @@ export default function ProductsPage() {
         <Input
           prefix={<SearchOutlined />}
           placeholder="Tìm tên, SKU, barcode..."
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           allowClear
           style={{ width: 280 }}
         />

@@ -96,6 +96,11 @@ export default function POSPage() {
     if (qty <= 0) {
       setCart(cart.filter((c) => c.product.id !== productId));
     } else {
+      const item = cart.find((c) => c.product.id === productId);
+      if (item && qty > item.product.stock) {
+        message.warning('Số lượng vượt quá tồn kho');
+        return;
+      }
       setCart(cart.map((c) => c.product.id === productId ? { ...c, quantity: qty } : c));
     }
   };
@@ -198,10 +203,10 @@ export default function POSPage() {
   const changeAmount = cashGiven > cashAmount ? cashGiven - cashAmount : 0;
 
   useEffect(() => {
-    if (checkoutOpen) {
+    if (checkoutOpen && paymentMethod !== 'mixed') {
       form.setFieldsValue({ cash_amount: finalTotal });
     }
-  }, [finalTotal, checkoutOpen]);
+  }, [finalTotal, checkoutOpen, paymentMethod, form]);
 
   const denominations = [20000, 50000, 100000, 200000, 500000];
 
