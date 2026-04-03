@@ -22,14 +22,18 @@ import WastePage from './pages/WastePage';
 import InventoryChecksPage from './pages/InventoryChecksPage';
 import DebtsPage from './pages/DebtsPage';
 import POSPage from './pages/POSPage';
+import { Agentation } from 'agentation';
 
 function App() {
   return (
     <ConfigProvider locale={viVN} theme={{ token: { colorPrimary: '#1677ff' } }}>
       <AuthProvider>
         <BrowserRouter>
+          <Agentation endpoint="http://localhost:4747" />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            {/* POS full-screen riêng — không có navigation */}
+            <Route path="/pos" element={<ProtectedRoute><POSPage /></ProtectedRoute>} />
             <Route
               element={
                 <ProtectedRoute>
@@ -38,7 +42,6 @@ function App() {
               }
             >
               <Route path="/" element={<DashboardPage />} />
-              <Route path="/pos" element={<POSPage />} />
               <Route path="/invoices" element={<InvoicesPage />} />
               <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
               <Route path="/shifts" element={<ShiftsPage />} />

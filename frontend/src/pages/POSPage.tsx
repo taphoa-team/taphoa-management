@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Row, Col, Card, Input, List, Button, InputNumber, Select, Typography, Tag, message, Modal, Form, Space, Divider, Badge } from 'antd';
-import { PlusOutlined, MinusOutlined, DeleteOutlined, ShoppingCartOutlined, SearchOutlined, PauseCircleOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Input, List, Button, InputNumber, Select, Typography, Tag, message, Modal, Form, Space, Divider, Badge, Layout } from 'antd';
+import { PlusOutlined, MinusOutlined, DeleteOutlined, ShoppingCartOutlined, SearchOutlined, PauseCircleOutlined, PlayCircleOutlined, ArrowLeftOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { ProductWithStock, Customer } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { ProductWithStock, Customer, Shift } from '../types';
 
 interface CartItem {
   product: ProductWithStock;
@@ -37,6 +39,8 @@ function nextHeldId(): number {
 }
 
 export default function POSPage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [products, setProducts] = useState<ProductWithStock[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -45,6 +49,7 @@ export default function POSPage() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [heldOrders, setHeldOrders] = useState<HeldOrder[]>(loadHeldOrders);
   const [heldOpen, setHeldOpen] = useState(false);
+  const [currentShift, setCurrentShift] = useState<Shift | null>(null);
   const [form] = Form.useForm();
   const searchRef = useRef<any>(null);
 
@@ -60,6 +65,7 @@ export default function POSPage() {
   useEffect(() => {
     fetchProducts();
     api.get('/customers', { params: { limit: 100 } }).then((r) => setCustomers(r.data || [])).catch(() => {});
+    api.get('/shifts/current').then((r) => setCurrentShift(r.data)).catch(() => setCurrentShift(null));
   }, []);
 
   useEffect(() => {
@@ -172,7 +178,43 @@ export default function POSPage() {
   const denominations = [20000, 50000, 100000, 200000, 500000];
 
   return (
-    <Row gutter={16} style={{ height: 'calc(100vh - 160px)' }}>
+    <Layout style={{ minHeight: '100vh', background: '#f5f5f5' }}>
+      {/* POS Header */}
+      <Layout.Header style={{
+        background: '#001529',
+        padding: '0 16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        height: 48,
+        lineHeight: '48px',
+      }}>
+        <Space>
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/')}
+            style={{ color: '#fff' }}>
+            Quay lại
+          </Button>
+          <Typography.Text strong style={{ color: '#fff', fontSize: 16 }}>
+            Family Mart — Bán hàng
+          </Typography.Text>
+        </Space>
+        <Space size="middle">
+          {currentShift ? (
+            <Tag icon={<ClockCircleOutlined />} color="green">
+              Ca #{currentShift.id} — {currentShift.user?.name || user?.name}
+            </Tag>
+          ) : (
+            <Tag color="red">Chưa mở ca</Tag>
+          )}
+          <Typography.Text style={{ color: 'rgba(255,255,255,0.65)' }}>
+            {user?.name}
+          </Typography.Text>
+        </Space>
+      </Layout.Header>
+
+      {/* POS Content */}
+      <Layout.Content style={{ padding: 16 }}>
+      <Row gutter={16} style={{ height: 'calc(100vh - 80px)' }}>
       {/* Danh sách sản phẩm */}
       <Col span={14}>
         <Input ref={searchRef} prefix={<SearchOutlined />} placeholder="Tìm tên, SKU, barcode..." value={search}
@@ -332,5 +374,7 @@ export default function POSPage() {
         )}
       </Modal>
     </Row>
+    </Layout.Content>
+    </Layout>
   );
 }
