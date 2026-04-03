@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, SearchOutlined, EyeOutlined } from '@ant-de
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Customer } from '../types';
+import { formatVND } from '../utils/format';
 
 export default function CustomersPage() {
   const navigate = useNavigate();
@@ -50,8 +51,6 @@ export default function CustomersPage() {
       message.error(err.response?.data?.error || 'Lỗi');
     }
   };
-
-  const formatVND = (v: number) => v.toLocaleString('vi-VN') + 'đ';
 
   const columns = [
     { title: 'ID', dataIndex: 'id', width: 60 },

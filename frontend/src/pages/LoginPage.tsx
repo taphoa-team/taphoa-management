@@ -1,13 +1,20 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Form, Input, Button, Card, Typography, message } from 'antd';
 import { PhoneOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { APP_NAME } from '../utils/format';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const onFinish = async (values: { phone: string; password: string }) => {
     setLoading(true);
@@ -32,7 +39,7 @@ export default function LoginPage() {
     }}>
       <Card style={{ width: 400 }}>
         <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 32 }}>
-          Quản lý Tạp Hóa
+          {APP_NAME}
         </Typography.Title>
         <Form onFinish={onFinish} size="large">
           <Form.Item name="phone" rules={[{ required: true, message: 'Nhập số điện thoại' }]}>

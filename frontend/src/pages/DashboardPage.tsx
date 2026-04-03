@@ -8,6 +8,7 @@ import {
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import { formatVND } from '../utils/format';
 import { Invoice, Shift, InventoryItem } from '../types';
 
 export default function DashboardPage() {
@@ -37,7 +38,6 @@ export default function DashboardPage() {
 
   const completedInvoices = todayInvoices.filter((i) => i.status === 'completed');
   const todayRevenue = completedInvoices.reduce((sum, i) => sum + i.final_total, 0);
-  const formatVND = (v: number) => v.toLocaleString('vi-VN') + 'đ';
 
   return (
     <div>

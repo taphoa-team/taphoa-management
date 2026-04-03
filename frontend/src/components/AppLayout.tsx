@@ -17,6 +17,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { APP_NAME } from '../utils/format';
 import type { MenuProps } from 'antd';
 
 const { Header, Content } = Layout;
@@ -108,7 +109,7 @@ export default function AppLayout() {
       }}>
         {/* Logo */}
         <Typography.Title level={4} style={{ color: '#fff', margin: 0, whiteSpace: 'nowrap', minWidth: 120 }}>
-          Family Mart
+          {APP_NAME}
         </Typography.Title>
 
         {/* Menu ngang */}

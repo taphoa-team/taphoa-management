@@ -1,28 +1,30 @@
-import React, { useEffect, useState } from 'react';
-import { Table, Typography, Tag, Input } from 'antd';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Table, Typography, Tag, Input, message } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { InventoryItem } from '../types';
+import { formatVND } from '../utils/format';
 
 export default function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
 
-  const fetchInventory = async () => {
+  const fetchInventory = useCallback(async () => {
     setLoading(true);
     try {
       const params: any = { limit: 100 };
       if (search) params.search = search;
       const res = await api.get('/inventory', { params });
       setItems(res.data || []);
-    } catch { /* ignore */ }
+    } catch { message.error('Lỗi tải dữ liệu'); }
     setLoading(false);
-  };
+  }, [search]);
 
-  useEffect(() => { fetchInventory(); }, [search]); // eslint-disable-line
-
-  const formatVND = (v: number) => v.toLocaleString('vi-VN') + 'đ';
+  useEffect(() => {
+    const timer = setTimeout(() => fetchInventory(), 300);
+    return () => clearTimeout(timer);
+  }, [fetchInventory]);
 
   const columns = [
     { title: 'SKU', dataIndex: 'sku', width: 100 },

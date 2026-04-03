@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Table, Button, message, Typography, Tag, Modal, InputNumber } from 'antd';
 import { PlusOutlined, CheckOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import api from '../services/api';
@@ -13,16 +13,16 @@ export default function InventoryChecksPage() {
   const [editMode, setEditMode] = useState(false);
   const [editItems, setEditItems] = useState<{ product_id: number; actual_quantity: number; note?: string }[]>([]);
 
-  const fetchChecks = async () => {
+  const fetchChecks = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/inventory-checks');
       setChecks(res.data || []);
-    } catch { /* ignore */ }
+    } catch { message.error('Lỗi tải dữ liệu'); }
     setLoading(false);
-  };
+  }, []);
 
-  useEffect(() => { fetchChecks(); }, []);
+  useEffect(() => { fetchChecks(); }, [fetchChecks]);
 
   const handleCreate = async () => {
     try {

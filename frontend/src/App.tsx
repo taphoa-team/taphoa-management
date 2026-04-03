@@ -29,7 +29,7 @@ function App() {
     <ConfigProvider locale={viVN} theme={{ token: { colorPrimary: '#1677ff' } }}>
       <AuthProvider>
         <BrowserRouter>
-          <Agentation endpoint="http://localhost:4747" />
+          {process.env.NODE_ENV === 'development' && <Agentation endpoint="http://localhost:4747" />}
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             {/* POS full-screen riêng — không có navigation */}

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Descriptions, Table, Typography, Tag, Button, Spin } from 'antd';
+import { Descriptions, Table, Typography, Tag, Button, Spin, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Invoice } from '../types';
+import { formatVND } from '../utils/format';
 
 export default function InvoiceDetailPage() {
   const { id } = useParams();
@@ -13,11 +14,10 @@ export default function InvoiceDetailPage() {
 
   useEffect(() => {
     api.get(`/invoices/${id}`).then((res) => setInvoice(res.data))
-      .catch(() => navigate('/invoices'))
+      .catch(() => { message.error('Lỗi tải dữ liệu'); navigate('/invoices'); })
       .finally(() => setLoading(false));
   }, [id, navigate]);
 
-  const formatVND = (v: number) => v.toLocaleString('vi-VN') + 'đ';
   const paymentLabel: Record<string, string> = { cash: 'Tiền mặt', transfer: 'Chuyển khoản', mixed: 'TM + CK', debt: 'Nợ' };
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;

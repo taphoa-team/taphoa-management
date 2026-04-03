@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Typography, Tag, Button } from 'antd';
+import { Table, Typography, Tag, Button, message } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Customer } from '../types';
+import { formatVND } from '../utils/format';
 
 export default function DebtsPage() {
   const navigate = useNavigate();
@@ -12,10 +13,8 @@ export default function DebtsPage() {
 
   useEffect(() => {
     setLoading(true);
-    api.get('/debts/summary').then((r) => setCustomers(r.data || [])).catch(() => {}).finally(() => setLoading(false));
+    api.get('/debts/summary').then((r) => setCustomers(r.data || [])).catch(() => message.error('Lỗi tải dữ liệu')).finally(() => setLoading(false));
   }, []);
-
-  const formatVND = (v: number) => v.toLocaleString('vi-VN') + 'đ';
 
   const columns = [
     { title: 'Tên', dataIndex: 'name' },

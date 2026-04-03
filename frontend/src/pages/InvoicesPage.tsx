@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Invoice } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { formatVND } from '../utils/format';
 
 export default function InvoicesPage() {
   const { user } = useAuth();
@@ -21,7 +22,7 @@ export default function InvoicesPage() {
       if (date) params.date = date;
       const res = await api.get('/invoices', { params });
       setInvoices(res.data || []);
-    } catch { /* ignore */ }
+    } catch { message.error('Lỗi tải dữ liệu'); }
     setLoading(false);
   }, [page, date]);
 
@@ -37,7 +38,6 @@ export default function InvoicesPage() {
     }
   };
 
-  const formatVND = (v: number) => v.toLocaleString('vi-VN') + 'đ';
   const paymentLabel: Record<string, string> = { cash: 'Tiền mặt', transfer: 'CK', mixed: 'TM+CK', debt: 'Nợ' };
 
   const columns = [

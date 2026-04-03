@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Descriptions, Table, Typography, Tag, Button, Modal, Form, InputNumber, Input, message, Spin } from 'antd';
 import { ArrowLeftOutlined, DollarOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Customer, Invoice, Debt } from '../types';
+import { formatVND } from '../utils/format';
 
 export default function CustomerDetailPage() {
   const { id } = useParams();
@@ -15,7 +16,7 @@ export default function CustomerDetailPage() {
   const [payModal, setPayModal] = useState(false);
   const [form] = Form.useForm();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get(`/customers/${id}`);
@@ -28,9 +29,9 @@ export default function CustomerDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
 
-  useEffect(() => { fetchData(); }, [id]); // eslint-disable-line
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handlePayDebt = async () => {
     const values = await form.validateFields();
@@ -44,8 +45,6 @@ export default function CustomerDetailPage() {
       message.error(err.response?.data?.error || 'Lỗi');
     }
   };
-
-  const formatVND = (v: number) => v.toLocaleString('vi-VN') + 'đ';
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
   if (!customer) return null;

@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, StopOutlined, SearchOutlined, PrinterOutlin
 import api from '../services/api';
 import { ProductWithStock, Category, UnitConversion } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { formatVND, escapeHtml } from '../utils/format';
 
 export default function ProductsPage() {
   const { user } = useAuth();
@@ -129,7 +130,7 @@ export default function ProductsPage() {
     const w = window.open('', '_blank', 'width=400,height=300');
     if (!w) return;
     w.document.write(`
-      <html><head><title>Tem ${product.sku}</title>
+      <html><head><title>Tem ${escapeHtml(product.sku)}</title>
       <style>
         body { font-family: monospace; text-align: center; padding: 20px; }
         .sku { font-size: 24px; letter-spacing: 4px; margin: 10px 0; }
@@ -137,9 +138,9 @@ export default function ProductsPage() {
         .price { font-size: 18px; font-weight: bold; margin-top: 8px; }
         @media print { body { padding: 5px; } }
       </style></head><body>
-        <div class="name">${product.name}</div>
-        <div class="sku">${product.sku}</div>
-        ${product.barcode ? `<div class="sku">${product.barcode}</div>` : ''}
+        <div class="name">${escapeHtml(product.name)}</div>
+        <div class="sku">${escapeHtml(product.sku)}</div>
+        ${product.barcode ? `<div class="sku">${escapeHtml(product.barcode)}</div>` : ''}
         <div class="price">${product.sell_price.toLocaleString('vi-VN')}đ</div>
         <script>window.print(); window.close();</script>
       </body></html>
@@ -147,7 +148,6 @@ export default function ProductsPage() {
     w.document.close();
   };
 
-  const formatVND = (value: number) => value.toLocaleString('vi-VN') + 'đ';
 
   const columns = [
     { title: 'SKU', dataIndex: 'sku', width: 100 },

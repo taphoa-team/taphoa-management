@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Table, Button, Modal, Form, Select, InputNumber, Input, message, Typography } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { WasteRecord, Product, ProductBatch } from '../types';
+import { formatVND } from '../utils/format';
 
 export default function WastePage() {
   const [records, setRecords] = useState<WasteRecord[]>([]);
@@ -13,19 +14,20 @@ export default function WastePage() {
   const [page, setPage] = useState(1);
   const [form] = Form.useForm();
 
-  const fetchRecords = async () => {
+  const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/waste', { params: { page, limit: 20 } });
       setRecords(res.data || []);
-    } catch { /* ignore */ }
+    } catch { message.error('Lỗi tải dữ liệu'); }
     setLoading(false);
-  };
+  }, [page]);
+
+  useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
   useEffect(() => {
-    fetchRecords();
-    api.get('/products', { params: { limit: 100 } }).then((r) => setProducts(r.data || [])).catch(() => {});
-  }, [page]); // eslint-disable-line
+    api.get('/products', { params: { limit: 100 } }).then((r) => setProducts(r.data || [])).catch(() => message.error('Lỗi tải dữ liệu'));
+  }, []);
 
   const onProductChange = async (productId: number) => {
     form.setFieldValue('batch_id', undefined);
@@ -48,7 +50,6 @@ export default function WastePage() {
     }
   };
 
-  const formatVND = (v: number) => v.toLocaleString('vi-VN') + 'đ';
   const reasonLabels: Record<string, string> = { expired: 'Hết hạn', damaged: 'Hư hỏng', other: 'Khác' };
 
   const columns = [

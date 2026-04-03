@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Table, Typography, Tag, Button, Modal, InputNumber, Input, message, Space } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { Return, Invoice, InvoiceItem } from '../types';
+import { formatVND } from '../utils/format';
 
 export default function ReturnsPage() {
   const [returns, setReturns] = useState<Return[]>([]);
@@ -18,18 +19,15 @@ export default function ReturnsPage() {
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchReturns = () => {
+  const fetchReturns = useCallback(() => {
     setLoading(true);
     api.get('/returns', { params: { page, limit: 20 } })
       .then((res) => setReturns(res.data || []))
-      .catch(() => {})
+      .catch(() => message.error('Lỗi tải dữ liệu'))
       .finally(() => setLoading(false));
-  };
+  }, [page]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchReturns(); }, [page]);
-
-  const formatVND = (v: number) => v.toLocaleString('vi-VN') + 'đ';
+  useEffect(() => { fetchReturns(); }, [fetchReturns]);
 
   // Tìm đơn hàng gốc
   const fetchInvoice = async () => {

@@ -3,6 +3,7 @@ import { Table, Button, Modal, Form, Select, InputNumber, Input, DatePicker, mes
 import { PlusOutlined, MinusCircleOutlined, EyeOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { PurchaseOrder, Supplier, Product } from '../types';
+import { formatVND } from '../utils/format';
 
 export default function PurchaseOrdersPage() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
@@ -19,15 +20,16 @@ export default function PurchaseOrdersPage() {
     try {
       const res = await api.get('/purchase-orders', { params: { page, limit: 20 } });
       setOrders(res.data || []);
-    } catch { /* ignore */ }
+    } catch { message.error('Lỗi tải dữ liệu'); }
     setLoading(false);
   }, [page]);
 
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
   useEffect(() => {
-    fetchOrders();
-    api.get('/suppliers').then((r) => setSuppliers(r.data || [])).catch(() => {});
-    api.get('/products', { params: { limit: 100 } }).then((r) => setProducts(r.data || [])).catch(() => {});
-  }, [fetchOrders]);
+    api.get('/suppliers').then((r) => setSuppliers(r.data || [])).catch(() => message.error('Lỗi tải dữ liệu'));
+    api.get('/products', { params: { limit: 100 } }).then((r) => setProducts(r.data || [])).catch(() => message.error('Lỗi tải dữ liệu'));
+  }, []);
 
   const handleSubmit = async () => {
     const values = await form.validateFields();
@@ -59,8 +61,6 @@ export default function PurchaseOrdersPage() {
       setDetailModal(res.data);
     } catch { message.error('Không tải được chi tiết'); }
   };
-
-  const formatVND = (v: number) => v.toLocaleString('vi-VN') + 'đ';
 
   const columns = [
     { title: '#', dataIndex: 'id', width: 60 },

@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Table, Button, Modal, Form, InputNumber, Input, message, Typography, Tag, Space, Descriptions } from 'antd';
 import { PlayCircleOutlined, StopOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { Shift } from '../types';
+import { formatVND } from '../utils/format';
 
 export default function ShiftsPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -13,25 +14,25 @@ export default function ShiftsPage() {
   const [openForm] = Form.useForm();
   const [closeForm] = Form.useForm();
 
-  const fetchShifts = async () => {
+  const fetchShifts = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/shifts', { params: { limit: 20 } });
       setShifts(res.data || []);
-    } catch { /* ignore */ }
+    } catch { message.error('Lỗi tải dữ liệu'); }
     setLoading(false);
-  };
+  }, []);
 
-  const fetchCurrentShift = async () => {
+  const fetchCurrentShift = useCallback(async () => {
     try {
       const res = await api.get('/shifts/current');
       setCurrentShift(res.data);
     } catch {
       setCurrentShift(null);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchShifts(); fetchCurrentShift(); }, []);
+  useEffect(() => { fetchShifts(); fetchCurrentShift(); }, [fetchShifts, fetchCurrentShift]);
 
   const handleOpen = async () => {
     const values = await openForm.validateFields();
@@ -79,8 +80,6 @@ export default function ShiftsPage() {
       message.error(err.response?.data?.error || 'Lỗi');
     }
   };
-
-  const formatVND = (v: number) => (v ?? 0).toLocaleString('vi-VN') + 'đ';
 
   const columns = [
     { title: 'ID', dataIndex: 'id', width: 60 },

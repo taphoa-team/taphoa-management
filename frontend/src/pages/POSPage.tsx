@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Row, Col, Card, Input, List, Button, InputNumber, Select, Typography, Tag, message, Modal, Form, Space, Divider, Badge, Layout } from 'antd';
+import type { InputRef } from 'antd';
 import { PlusOutlined, MinusOutlined, DeleteOutlined, ShoppingCartOutlined, SearchOutlined, PauseCircleOutlined, PlayCircleOutlined, ArrowLeftOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { ProductWithStock, Customer, Shift } from '../types';
+import { formatVND, APP_NAME } from '../utils/format';
 
 interface CartItem {
   product: ProductWithStock;
@@ -51,7 +53,7 @@ export default function POSPage() {
   const [heldOpen, setHeldOpen] = useState(false);
   const [currentShift, setCurrentShift] = useState<Shift | null>(null);
   const [form] = Form.useForm();
-  const searchRef = useRef<any>(null);
+  const searchRef = useRef<InputRef>(null);
 
   const fetchProducts = async (q?: string) => {
     try {
@@ -74,8 +76,16 @@ export default function POSPage() {
   }, [search]);
 
   const addToCart = (product: ProductWithStock) => {
+    if (product.stock <= 0) {
+      message.warning('Sản phẩm đã hết hàng');
+      return;
+    }
     const existing = cart.find((c) => c.product.id === product.id);
     if (existing) {
+      if (existing.quantity >= product.stock) {
+        message.warning('Số lượng trong giỏ đã đạt tồn kho');
+        return;
+      }
       setCart(cart.map((c) => c.product.id === product.id ? { ...c, quantity: c.quantity + 1 } : c));
     } else {
       setCart([...cart, { product, quantity: 1, unit: product.unit }]);
@@ -133,6 +143,7 @@ export default function POSPage() {
 
   // --- Checkout ---
   const openCheckout = () => {
+    if (!currentShift) { message.warning('Vui lòng mở ca trước khi bán hàng'); return; }
     if (cart.length === 0) { message.warning('Giỏ hàng trống'); return; }
     form.resetFields();
     form.setFieldsValue({ payment_method: 'cash', discount_amount: 0, cash_amount: total, cash_given: 0 });
@@ -141,6 +152,16 @@ export default function POSPage() {
 
   const handleCheckout = async () => {
     const values = await form.validateFields();
+    const discountAmt = values.discount_amount || 0;
+    const checkoutTotal = total - discountAmt;
+    if (values.payment_method === 'cash' || values.payment_method === 'transfer' || values.payment_method === 'mixed') {
+      const cashAmt = (values.payment_method === 'cash' || values.payment_method === 'mixed') ? (values.cash_amount || 0) : 0;
+      const transferAmt = (values.payment_method === 'transfer' || values.payment_method === 'mixed') ? (values.transfer_amount || 0) : 0;
+      if (cashAmt + transferAmt < checkoutTotal) {
+        message.error('Tổng tiền mặt + chuyển khoản chưa đủ');
+        return;
+      }
+    }
     setCheckoutLoading(true);
     try {
       const payload = {
@@ -169,11 +190,18 @@ export default function POSPage() {
     }
   };
 
-  const formatVND = (v: number) => v.toLocaleString('vi-VN') + 'đ';
   const paymentMethod = Form.useWatch('payment_method', form);
+  const discountAmount = Form.useWatch('discount_amount', form) || 0;
+  const finalTotal = total - discountAmount;
   const cashGiven = Form.useWatch('cash_given', form) || 0;
   const cashAmount = Form.useWatch('cash_amount', form) || 0;
   const changeAmount = cashGiven > cashAmount ? cashGiven - cashAmount : 0;
+
+  useEffect(() => {
+    if (checkoutOpen) {
+      form.setFieldsValue({ cash_amount: finalTotal });
+    }
+  }, [finalTotal, checkoutOpen]);
 
   const denominations = [20000, 50000, 100000, 200000, 500000];
 
@@ -195,7 +223,7 @@ export default function POSPage() {
             Quay lại
           </Button>
           <Typography.Text strong style={{ color: '#fff', fontSize: 16 }}>
-            Family Mart — Bán hàng
+            {APP_NAME} — Bán hàng
           </Typography.Text>
         </Space>
         <Space size="middle">
@@ -293,7 +321,7 @@ export default function POSPage() {
       {/* Modal thanh toán */}
       <Modal title="Thanh toán" open={checkoutOpen} onOk={handleCheckout} onCancel={() => setCheckoutOpen(false)}
         okText="Xác nhận" cancelText="Hủy" confirmLoading={checkoutLoading} width={500}>
-        <Typography.Title level={4} style={{ textAlign: 'center' }}>Tổng: {formatVND(total)}</Typography.Title>
+        <Typography.Title level={4} style={{ textAlign: 'center' }}>Tổng: {formatVND(finalTotal)}</Typography.Title>
         <Divider />
         <Form form={form} layout="vertical">
           <Form.Item name="payment_method" label="Phương thức thanh toán" rules={[{ required: true }]}>
@@ -343,7 +371,7 @@ export default function POSPage() {
             </>
           )}
           <Form.Item name="discount_amount" label="Giảm giá (VNĐ)">
-            <InputNumber min={0} style={{ width: '100%' }} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
+            <InputNumber min={0} max={total} style={{ width: '100%' }} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
           </Form.Item>
           {paymentMethod !== 'debt' && (
             <Form.Item name="customer_id" label="Khách hàng (tùy chọn)">
