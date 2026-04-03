@@ -75,6 +75,11 @@ func SetupRoutes(r *gin.Engine) {
 			auth.GET("/returns", handlers.ListReturns)
 			auth.POST("/returns", handlers.CreateReturn)
 
+			// === Alerts ===
+			auth.GET("/alerts/expiry", handlers.ListExpiryAlerts)
+			auth.GET("/alerts/low-stock", handlers.ListLowStockAlerts)
+			auth.GET("/alerts/summary", handlers.GetAlertSummary)
+
 			// === Inventory ===
 			auth.GET("/inventory", handlers.ListInventory)
 
