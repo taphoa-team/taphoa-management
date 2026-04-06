@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Button, Modal, Form, Input, InputNumber, Select, Switch, message, Space, Typography, Tag, Divider, Popconfirm } from 'antd';
+import { Table, Button, Modal, Form, Input, InputNumber, Select, Switch, message, Space, Tag, Divider, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, StopOutlined, SearchOutlined, PrinterOutlined, DeleteOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { ProductWithStock, Category, UnitConversion } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { formatVND, escapeHtml } from '../utils/format';
+import { PageHeader, EmptyState } from '../components/common';
+import { PAGE_SIZE, DEBOUNCE_DELAY } from '../constants';
 
 export default function ProductsPage() {
   const { user } = useAuth();
@@ -17,23 +19,25 @@ export default function ProductsPage() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<number | undefined>();
   const [page, setPage] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
   // Debounce search input
   useEffect(() => {
-    const timer = setTimeout(() => { setSearch(searchInput); setPage(1); }, 300);
+    const timer = setTimeout(() => { setSearch(searchInput); setPage(1); }, DEBOUNCE_DELAY);
     return () => clearTimeout(timer);
   }, [searchInput]);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = { page, limit: 20 };
+      const params: any = { page, limit: PAGE_SIZE };
       if (search) params.search = search;
       if (categoryFilter) params.category_id = categoryFilter;
       const res = await api.get('/products', { params });
       setProducts(res.data || []);
-    } catch {
+    } catch (err) {
+      console.error('Error fetching products:', err);
       message.error('Lỗi tải sản phẩm');
     } finally {
       setLoading(false);
@@ -44,7 +48,10 @@ export default function ProductsPage() {
     try {
       const res = await api.get('/categories');
       setCategories(res.data);
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+      message.error('Lỗi tải nhóm hàng');
+    }
   };
 
   useEffect(() => { fetchCategories(); }, []);
@@ -73,7 +80,9 @@ export default function ProductsPage() {
   };
 
   const handleSubmit = async () => {
+    if (submitting) return;
     const values = await form.validateFields();
+    setSubmitting(true);
     try {
       if (editing) {
         await api.put(`/products/${editing.id}`, values);
@@ -85,7 +94,10 @@ export default function ProductsPage() {
       setModalOpen(false);
       fetchProducts();
     } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi');
+      console.error('Error saving product:', err);
+      message.error(err.response?.data?.error || 'Lỗi lưu sản phẩm');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -95,7 +107,8 @@ export default function ProductsPage() {
       message.success('Đã ngừng bán');
       fetchProducts();
     } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi');
+      console.error('Error deactivating product:', err);
+      message.error(err.response?.data?.error || 'Lỗi ngừng bán sản phẩm');
     }
   };
 
@@ -107,7 +120,10 @@ export default function ProductsPage() {
     try {
       const res = await api.get(`/products/${productId}/conversions`);
       setConversions(res.data || []);
-    } catch { setConversions([]); }
+    } catch (err) {
+      console.error('Error fetching conversions:', err);
+      setConversions([]);
+    }
   };
 
   const addConversion = async () => {
@@ -119,7 +135,8 @@ export default function ProductsPage() {
       fetchConversions(editing.id);
       message.success('Đã thêm quy đổi');
     } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi');
+      console.error('Error adding conversion:', err);
+      message.error(err.response?.data?.error || 'Lỗi thêm quy đổi');
     }
   };
 
@@ -127,16 +144,32 @@ export default function ProductsPage() {
     try {
       await api.delete(`/products/${productId}/conversions/${convId}`);
       fetchConversions(productId);
+      message.success('Đã xóa quy đổi');
     } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi');
+      console.error('Error deleting conversion:', err);
+      message.error(err.response?.data?.error || 'Lỗi xóa quy đổi');
     }
   };
 
   // --- In barcode ---
+  // Sử dụng hidden iframe thay vì document.write để tránh XSS và pop-up blocker
   const printBarcode = (product: ProductWithStock) => {
-    const w = window.open('', '_blank', 'width=400,height=300');
-    if (!w) return;
-    w.document.write(`
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      document.body.removeChild(iframe);
+      return;
+    }
+
+    const html = `
       <html><head><title>Tem ${escapeHtml(product.sku)}</title>
       <style>
         body { font-family: monospace; text-align: center; padding: 20px; }
@@ -149,12 +182,34 @@ export default function ProductsPage() {
         <div class="sku">${escapeHtml(product.sku)}</div>
         ${product.barcode ? `<div class="sku">${escapeHtml(product.barcode)}</div>` : ''}
         <div class="price">${product.sell_price.toLocaleString('vi-VN')}đ</div>
-        <script>window.print(); window.close();</script>
       </body></html>
-    `);
-    w.document.close();
-  };
+    `;
 
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    // Đợi load xong rồi in
+    iframe.onload = () => {
+      iframe.contentWindow?.print();
+      // Xóa iframe sau khi in
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 1000);
+    };
+
+    // Fallback nếu onload không trigger
+    setTimeout(() => {
+      iframe.contentWindow?.print();
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 1000);
+    }, 500);
+  };
 
   const columns = [
     { title: 'SKU', dataIndex: 'sku', width: 100 },
@@ -190,9 +245,18 @@ export default function ProductsPage() {
           <Button icon={<EditOutlined />} size="small" onClick={() => openEdit(record)}>Sửa</Button>
           <Button icon={<PrinterOutlined />} size="small" onClick={() => printBarcode(record)}>Tem</Button>
           {user?.role === 'admin' && (
-            <Button icon={<StopOutlined />} size="small" danger onClick={() => handleDeactivate(record.id)}>
-              Ngừng
-            </Button>
+            <Popconfirm
+              title="Ngừng bán sản phẩm?"
+              description={`Bạn có chắc muốn ngừng bán "${record.name}"?`}
+              onConfirm={() => handleDeactivate(record.id)}
+              okText="Ngừng"
+              cancelText="Hủy"
+              okButtonProps={{ danger: true }}
+            >
+              <Button icon={<StopOutlined />} size="small" danger>
+                Ngừng
+              </Button>
+            </Popconfirm>
           )}
         </Space>
       ),
@@ -201,10 +265,12 @@ export default function ProductsPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>Sản phẩm</Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm SP</Button>
-      </div>
+      <PageHeader
+        title="Sản phẩm"
+        actionText="Thêm SP"
+        actionIcon={<PlusOutlined />}
+        onAction={openCreate}
+      />
 
       <Space style={{ marginBottom: 16 }}>
         <Input
@@ -232,11 +298,22 @@ export default function ProductsPage() {
         loading={loading}
         pagination={{
           current: page,
-          pageSize: 20,
+          pageSize: PAGE_SIZE,
           onChange: setPage,
           showSizeChanger: false,
         }}
         size="middle"
+        locale={{
+          emptyText: (
+            <EmptyState
+              title="Chưa có sản phẩm nào"
+              description="Bắt đầu bằng cách thêm sản phẩm đầu tiên"
+              actionText="Thêm sản phẩm"
+              onAction={openCreate}
+              showAction
+            />
+          ),
+        }}
       />
 
       <Modal
@@ -247,6 +324,7 @@ export default function ProductsPage() {
         okText={editing ? 'Cập nhật' : 'Thêm'}
         cancelText="Hủy"
         width={600}
+        confirmLoading={submitting}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="Tên sản phẩm" rules={[{ required: true, message: 'Nhập tên' }]}>

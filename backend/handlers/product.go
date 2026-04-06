@@ -8,6 +8,7 @@ import (
 
 	"taphoa-management/backend/config"
 	"taphoa-management/backend/models"
+	"taphoa-management/backend/services"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -36,26 +37,9 @@ func generateSKU(tx *gorm.DB) string {
 	return fmt.Sprintf("TH%04d", num+1)
 }
 
-// FIX 3.3 + R5: Shared helper cho stock calculation, hỗ trợ filter theo product IDs
+// getStockMap delegates to services.GetStockMap — single source of truth
 func getStockMap(db *gorm.DB, productIDs ...[]uint) map[uint]int {
-	type stockResult struct {
-		ProductID uint
-		Total     int
-	}
-	var stocks []stockResult
-	query := db.Model(&models.ProductBatch{}).
-		Select("product_id, COALESCE(SUM(quantity), 0) as total").
-		Group("product_id")
-	if len(productIDs) > 0 && len(productIDs[0]) > 0 {
-		query = query.Where("product_id IN ?", productIDs[0])
-	}
-	query.Find(&stocks)
-
-	stockMap := make(map[uint]int)
-	for _, s := range stocks {
-		stockMap[s.ProductID] = s.Total
-	}
-	return stockMap
+	return services.GetStockMap(db, productIDs...)
 }
 
 // --- Handlers ---

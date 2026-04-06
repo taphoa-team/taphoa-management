@@ -134,12 +134,16 @@ func GetCurrentShift(c *gin.Context) {
 	c.JSON(http.StatusOK, shift)
 }
 
-// ListShifts — danh sách ca (admin xem tất cả)
+// ListShifts — admin xem tất cả, staff chỉ xem ca của mình
 func ListShifts(c *gin.Context) {
+	role, _ := c.Get("role")
+	query := config.DB.Preload("User").Scopes(paginate(c)).Order("opened_at DESC")
+	if role != "admin" {
+		userID, _ := c.Get("user_id")
+		query = query.Where("user_id = ?", userID)
+	}
 	var shifts []models.Shift
-	config.DB.Preload("User").Scopes(paginate(c)).Order("opened_at DESC").Find(&shifts)
-
-	// FIX 3.1: Dùng _ thay vì gorm.Expr cho read-only
+	query.Find(&shifts)
 	c.JSON(http.StatusOK, shifts)
 }
 

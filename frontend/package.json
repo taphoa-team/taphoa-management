@@ -4,15 +4,6 @@
   "private": true,
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
-    "@testing-library/dom": "^10.4.1",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^13.5.0",
-    "@types/jest": "^27.5.2",
-    "@types/node": "^16.18.126",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "agentation": "^3.0.2",
     "antd": "^6.3.4",
     "axios": "^1.13.6",
     "react": "^19.2.4",
@@ -33,6 +24,17 @@
       "react-app",
       "react-app/jest"
     ]
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.126",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "agentation": "^3.0.2"
   },
   "browserslist": {
     "production": [

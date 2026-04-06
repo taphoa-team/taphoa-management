@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"taphoa-management/backend/config"
 	"taphoa-management/backend/models"
@@ -127,6 +129,11 @@ func CreateInvoice(c *gin.Context) {
 	}
 
 	finalTotal := total - req.DiscountAmount
+	if finalTotal < 0 {
+		tx.Rollback()
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Giảm giá vượt quá tổng tiền"})
+		return
+	}
 
 	// FIX 2.5: Validate thanh toán đủ
 	switch req.PaymentMethod {
@@ -184,11 +191,16 @@ func CreateInvoice(c *gin.Context) {
 	}
 
 	// FIX N1: Atomic shift update
-	tx.Model(&models.Shift{}).Where("id = ?", shift.ID).
+	shiftResult := tx.Model(&models.Shift{}).Where("id = ?", shift.ID).
 		Updates(map[string]interface{}{
 			"total_sales":    gorm.Expr("total_sales + ?", finalTotal),
 			"total_invoices": gorm.Expr("total_invoices + 1"),
 		})
+	if shiftResult.Error != nil || shiftResult.RowsAffected == 0 {
+		tx.Rollback()
+		c.JSON(http.StatusConflict, gin.H{"error": "Ca làm việc đã đóng hoặc không tồn tại"})
+		return
+	}
 
 	// Ghi nợ nếu mua nợ
 	if req.PaymentMethod == "debt" && req.CustomerID != nil {
@@ -217,6 +229,10 @@ func ListInvoices(c *gin.Context) {
 	query := config.DB.Preload("User").Preload("Customer").Order("created_at DESC")
 
 	if date := c.Query("date"); date != "" {
+		if _, err := time.Parse("2006-01-02", date); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "date phải có format YYYY-MM-DD"})
+			return
+		}
 		query = query.Where("DATE(created_at) = ?", date)
 	}
 	// FIX R18: Validate shift_id là số
@@ -228,6 +244,10 @@ func ListInvoices(c *gin.Context) {
 		query = query.Where("shift_id = ?", shiftID)
 	}
 	if status := c.Query("status"); status != "" {
+		if status != "completed" && status != "cancelled" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "status phải là 'completed' hoặc 'cancelled'"})
+			return
+		}
 		query = query.Where("status = ?", status)
 	}
 
@@ -260,31 +280,48 @@ func CancelInvoice(c *gin.Context) {
 		return
 	}
 
-	var invoice models.Invoice
-	if err := config.DB.Preload("Items").First(&invoice, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy đơn hàng"})
+	tx := config.DB.Begin()
+
+	// Atomic status check + update inside transaction to prevent TOCTOU race
+	result := tx.Model(&models.Invoice{}).
+		Where("id = ? AND status = ?", id, "completed").
+		Update("status", "cancelled")
+	if result.Error != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi cập nhật đơn hàng"})
+		return
+	}
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		c.JSON(http.StatusConflict, gin.H{"error": "Đơn hàng đã bị hủy hoặc không tồn tại"})
 		return
 	}
 
-	if invoice.Status == "cancelled" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Đơn hàng đã bị hủy trước đó"})
+	var invoice models.Invoice
+	if err := tx.Preload("Items").First(&invoice, id).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy đơn hàng"})
 		return
 	}
 
 	// FIX 1.1: Kiểm tra đã có return chưa — nếu có thì không cho cancel
 	var returnCount int64
-	config.DB.Model(&models.Return{}).Where("invoice_id = ? AND status = ?", invoice.ID, "completed").Count(&returnCount)
+	tx.Model(&models.Return{}).Where("invoice_id = ? AND status = ?", invoice.ID, "completed").Count(&returnCount)
 	if returnCount > 0 {
+		tx.Rollback()
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Đơn hàng đã có trả hàng — không thể hủy"})
 		return
 	}
 
-	tx := config.DB.Begin()
-
 	// Cộng lại tồn kho
 	for _, item := range invoice.Items {
-		tx.Model(&models.ProductBatch{}).Where("id = ?", item.BatchID).
+		result := tx.Model(&models.ProductBatch{}).Where("id = ?", item.BatchID).
 			Update("quantity", gorm.Expr("quantity + ?", item.Quantity))
+		if result.RowsAffected == 0 {
+			tx.Rollback()
+			c.JSON(http.StatusConflict, gin.H{"error": fmt.Sprintf("Lô hàng #%d không còn tồn tại", item.BatchID)})
+			return
+		}
 	}
 
 	// Xóa nợ nếu là đơn mua nợ
@@ -316,14 +353,16 @@ func CancelInvoice(c *gin.Context) {
 	}
 
 	// Cập nhật shift
-	tx.Model(&models.Shift{}).Where("id = ?", invoice.ShiftID).
+	shiftResult := tx.Model(&models.Shift{}).Where("id = ?", invoice.ShiftID).
 		Updates(map[string]interface{}{
 			"total_sales":    gorm.Expr("total_sales - ?", invoice.FinalTotal),
 			"total_invoices": gorm.Expr("total_invoices - 1"),
 		})
-
-	invoice.Status = "cancelled"
-	tx.Save(&invoice)
+	if shiftResult.Error != nil || shiftResult.RowsAffected == 0 {
+		tx.Rollback()
+		c.JSON(http.StatusConflict, gin.H{"error": "Ca làm việc không tồn tại"})
+		return
+	}
 
 	tx.Commit()
 	c.JSON(http.StatusOK, gin.H{"message": "Đã hủy đơn hàng"})
