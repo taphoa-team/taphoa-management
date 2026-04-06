@@ -78,8 +78,11 @@ export default function ProductsPage() {
     setModalOpen(true);
   };
 
+  const [submitting, setSubmitting] = useState(false);
   const handleSubmit = async () => {
+    if (submitting) return;
     const values = await form.validateFields();
+    setSubmitting(true);
     try {
       if (editing) {
         await api.put(`/products/${editing.id}`, values);
@@ -93,6 +96,8 @@ export default function ProductsPage() {
     } catch (err: any) {
       console.error('Error saving product:', err);
       message.error(err.response?.data?.error || 'Lỗi lưu sản phẩm');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -319,7 +324,7 @@ export default function ProductsPage() {
         okText={editing ? 'Cập nhật' : 'Thêm'}
         cancelText="Hủy"
         width={600}
-        confirmLoading={loading}
+        confirmLoading={submitting}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="Tên sản phẩm" rules={[{ required: true, message: 'Nhập tên' }]}>

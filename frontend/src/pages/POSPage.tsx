@@ -712,7 +712,7 @@ export default function POSPage() {
                   fontSize: 18,
                   fontWeight: 700,
                   borderRadius: 14,
-                  background: activeOrder.items.length > 0 && cashGiven >= finalTotal
+                  background: activeOrder.items.length > 0 && effectiveCashGiven >= finalTotal
                     ? THEME.primary : undefined,
                   border: 'none',
                 }}

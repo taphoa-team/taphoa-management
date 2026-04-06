@@ -58,6 +58,9 @@ func ListExpiryAlerts(c *gin.Context) {
 
 	var result []ExpiryAlertItem
 	for _, b := range batches {
+		if b.ExpiryDate == nil {
+			continue
+		}
 		daysLeft := int(math.Ceil(b.ExpiryDate.Sub(now).Hours() / 24))
 		result = append(result, ExpiryAlertItem{
 			ProductBatch: b,
@@ -118,22 +121,21 @@ func GetAlertSummary(c *gin.Context) {
 	day7 := now.AddDate(0, 0, 7)
 	day30 := now.AddDate(0, 0, 30)
 
-	var expiring7, expiring30, expired int64
-
-	// Lô hết hạn trong 7 ngày (chưa hết hạn)
+	// Gộp 3 batch queries thành 1 với conditional COUNT
+	type batchCounts struct {
+		Expired     int64
+		Expiring7D  int64
+		Expiring30D int64
+	}
+	var counts batchCounts
 	config.DB.Model(&models.ProductBatch{}).
-		Where("quantity > 0 AND expiry_date IS NOT NULL AND expiry_date > ? AND expiry_date <= ?", now, day7).
-		Count(&expiring7)
-
-	// Lô hết hạn trong 30 ngày (bao gồm 7 ngày)
-	config.DB.Model(&models.ProductBatch{}).
-		Where("quantity > 0 AND expiry_date IS NOT NULL AND expiry_date > ? AND expiry_date <= ?", now, day30).
-		Count(&expiring30)
-
-	// Lô đã hết hạn (chưa xuất hủy — vẫn còn quantity)
-	config.DB.Model(&models.ProductBatch{}).
-		Where("quantity > 0 AND expiry_date IS NOT NULL AND expiry_date <= ?", now).
-		Count(&expired)
+		Select(`
+			COUNT(CASE WHEN expiry_date <= ? THEN 1 END) as expired,
+			COUNT(CASE WHEN expiry_date > ? AND expiry_date <= ? THEN 1 END) as expiring7_d,
+			COUNT(CASE WHEN expiry_date > ? AND expiry_date <= ? THEN 1 END) as expiring30_d
+		`, now, now, day7, now, day30).
+		Where("quantity > 0 AND expiry_date IS NOT NULL").
+		Scan(&counts)
 
 	// Tồn kho thấp + hết hàng
 	var products []models.Product
@@ -151,9 +153,9 @@ func GetAlertSummary(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, AlertSummary{
-		Expiring7D:  int(expiring7),
-		Expiring30D: int(expiring30),
-		Expired:     int(expired),
+		Expiring7D:  int(counts.Expiring7D),
+		Expiring30D: int(counts.Expiring30D),
+		Expired:     int(counts.Expired),
 		LowStock:    lowStock,
 		OutOfStock:  outOfStock,
 	})
