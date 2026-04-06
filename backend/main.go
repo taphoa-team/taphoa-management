@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strings"
 
 	"taphoa-management/backend/config"
 	"taphoa-management/backend/models"
@@ -76,9 +77,39 @@ func main() {
 	// Đăng ký routes
 	routes.SetupRoutes(r)
 
-	// Chạy server trên port 8082
-	port := "8082"
-	log.Println("Server running on http://localhost:" + port)
+	// Serve frontend tĩnh nếu có thư mục build
+	staticDir := os.Getenv("STATIC_DIR")
+	if staticDir == "" {
+		staticDir = "../frontend/build"
+	}
+	if info, err := os.Stat(staticDir); err == nil && info.IsDir() {
+		r.Use(func(c *gin.Context) {
+			path := c.Request.URL.Path
+			// Bỏ qua API routes
+			if strings.HasPrefix(path, "/api") || path == "/health" {
+				c.Next()
+				return
+			}
+			// Thử serve file tĩnh
+			filePath := staticDir + path
+			if _, err := os.Stat(filePath); err == nil {
+				c.File(filePath)
+				c.Abort()
+				return
+			}
+			// Fallback → index.html (SPA routing)
+			c.File(staticDir + "/index.html")
+			c.Abort()
+		})
+		log.Printf("Serving frontend from %s", staticDir)
+	}
+
+	// Chạy server
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8082"
+	}
+	log.Printf("Server running on http://localhost:%s", port)
 	r.Run(":" + port)
 }
 
