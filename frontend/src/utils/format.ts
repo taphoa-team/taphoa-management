@@ -9,6 +9,3 @@ export function escapeHtml(text: string): string {
   div.textContent = text;
   return div.innerHTML;
 }
-
-// Issue #9: App name constant
-export const APP_NAME = 'Family Mart';

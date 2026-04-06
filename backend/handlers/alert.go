@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"math"
 	"net/http"
 	"strconv"
@@ -104,7 +105,8 @@ func ListLowStockAlerts(c *gin.Context) {
 // SendAlertEmail — gửi email cảnh báo thủ công (admin bấm nút)
 func SendAlertEmail(c *gin.Context) {
 	if err := services.SendAlertEmail(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[Alert] Send email failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gửi email thất bại"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Đã gửi email cảnh báo"})

@@ -7,6 +7,7 @@ import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { ProductWithStock, Customer, Shift } from '../types';
 import { formatVND } from '../utils/format';
+import { CASH_DENOMINATIONS } from '../constants';
 
 interface CartItem {
   product: ProductWithStock;
@@ -113,8 +114,10 @@ export default function POSPage() {
     }
   }, [modalSearch, productModalOpen, fetchProducts]);
 
-  // Focus ô search khi đổi tab
+  // Reset discount mode + focus ô search khi đổi tab
   useEffect(() => {
+    setDiscountMode('amount');
+    setDiscountPercent(0);
     searchRef.current?.focus();
   }, [activeOrderId]);
 
@@ -206,13 +209,19 @@ export default function POSPage() {
   };
 
   const subtotal = activeOrder.items.reduce((sum, c) => sum + c.product.sell_price * c.quantity, 0);
-  const finalTotal = subtotal - discountAmount;
+  const clampedDiscount = Math.min(discountAmount, subtotal);
+  const finalTotal = subtotal - clampedDiscount;
   // Mặc định khách trả đủ tiền — chỉ tính tiền thừa khi chọn mệnh giá lớn hơn
   const effectiveCashGiven = cashGiven === 0 ? finalTotal : cashGiven;
   const changeAmount = effectiveCashGiven > finalTotal ? effectiveCashGiven - finalTotal : 0;
 
   // --- Multi-order tabs ---
+  const MAX_ORDERS = 10;
   const createNewOrder = () => {
+    if (activeOrders.length >= MAX_ORDERS) {
+      message.warning(`Tối đa ${MAX_ORDERS} đơn hàng`);
+      return;
+    }
     const newId = Date.now();
     setActiveOrders((prev) => [...prev, { id: newId, items: [], createdAt: new Date().toISOString(), discountAmount: 0, cashGiven: 0, selectedCustomer: null }]);
     setActiveOrderId(newId);
@@ -243,7 +252,9 @@ export default function POSPage() {
   };
 
   // --- Checkout ---
+  const checkoutLoadingRef = useRef(false);
   const handleCheckout = async () => {
+    if (checkoutLoadingRef.current) return;
     if (!currentShift) {
       message.warning('Vui lòng mở ca trước khi bán hàng');
       return;
@@ -257,6 +268,7 @@ export default function POSPage() {
       return;
     }
 
+    checkoutLoadingRef.current = true;
     setCheckoutLoading(true);
     try {
       const payload = {
@@ -288,6 +300,7 @@ export default function POSPage() {
     } catch (err: any) {
       message.error(err.response?.data?.error || 'Lỗi thanh toán');
     } finally {
+      checkoutLoadingRef.current = false;
       setCheckoutLoading(false);
     }
   };
@@ -309,7 +322,7 @@ export default function POSPage() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  const denominations = [10000, 20000, 50000, 100000, 200000, 500000];
+  const denominations = CASH_DENOMINATIONS;
 
   const tabStyle = (isActive: boolean): React.CSSProperties => ({
     height: 48,

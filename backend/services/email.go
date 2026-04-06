@@ -12,6 +12,8 @@ import (
 
 	"taphoa-management/backend/config"
 	"taphoa-management/backend/models"
+
+	"gorm.io/gorm"
 )
 
 // SendAlertEmail gửi email cảnh báo hết hạn + hàng sắp hết kho
@@ -97,7 +99,7 @@ func buildAlertEmailBody() (string, bool) {
 	var products []models.Product
 	config.DB.Where("is_active = ?", true).Find(&products)
 
-	stockMap := getStockMap()
+	stockMap := GetStockMap(config.DB)
 
 	type lowStockItem struct {
 		Name    string
@@ -185,17 +187,20 @@ func buildAlertEmailBody() (string, bool) {
 	return b.String(), true
 }
 
-// getStockMap tính tồn kho hiện tại cho tất cả sản phẩm
-func getStockMap() map[uint]int {
+// GetStockMap tính tồn kho hiện tại, hỗ trợ filter theo product IDs
+func GetStockMap(db *gorm.DB, productIDs ...[]uint) map[uint]int {
 	type stockRow struct {
 		ProductID uint
 		Total     int
 	}
 	var rows []stockRow
-	config.DB.Model(&models.ProductBatch{}).
+	query := db.Model(&models.ProductBatch{}).
 		Select("product_id, COALESCE(SUM(quantity), 0) as total").
-		Group("product_id").
-		Find(&rows)
+		Group("product_id")
+	if len(productIDs) > 0 && len(productIDs[0]) > 0 {
+		query = query.Where("product_id IN ?", productIDs[0])
+	}
+	query.Find(&rows)
 
 	m := make(map[uint]int, len(rows))
 	for _, r := range rows {

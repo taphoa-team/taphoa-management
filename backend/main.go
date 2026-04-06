@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -67,8 +68,10 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// Khởi động scheduler gửi email cảnh báo mỗi ngày 7h sáng
-	services.StartAlertScheduler()
+	// Khởi động scheduler gửi email cảnh báo mỗi ngày 7h sáng (VN time)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	services.StartAlertScheduler(ctx)
 
 	// Đăng ký routes
 	routes.SetupRoutes(r)

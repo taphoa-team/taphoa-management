@@ -60,7 +60,7 @@ export default function DashboardPage() {
       if (summaryRes.status === 'fulfilled') setAlertSummary(summaryRes.value.data);
       if (lowRes.status === 'fulfilled') setLowStock(lowRes.value.data || []);
       if (expiryRes.status === 'fulfilled') setExpiring(expiryRes.value.data || []);
-      const failed = [invRes, summaryRes, lowRes, expiryRes].filter((r) => r.status === 'rejected');
+      const failed = [invRes, shiftRes, summaryRes, lowRes, expiryRes].filter((r) => r.status === 'rejected');
       if (failed.length > 0) message.error('Lỗi tải dữ liệu');
       setLoading(false);
     });

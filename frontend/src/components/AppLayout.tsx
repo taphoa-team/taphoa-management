@@ -18,7 +18,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { APP_NAME } from '../utils/format';
+import { APP_NAME } from '../constants';
 import { Breadcrumbs } from './common';
 import ErrorBoundary from './ErrorBoundary';
 import type { MenuProps } from 'antd';

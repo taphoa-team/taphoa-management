@@ -79,7 +79,6 @@ func SetupRoutes(r *gin.Engine) {
 			auth.GET("/alerts/expiry", handlers.ListExpiryAlerts)
 			auth.GET("/alerts/low-stock", handlers.ListLowStockAlerts)
 			auth.GET("/alerts/summary", handlers.GetAlertSummary)
-			auth.POST("/alerts/send-email", handlers.SendAlertEmail)
 
 			// === Inventory ===
 			auth.GET("/inventory", handlers.ListInventory)
@@ -116,6 +115,7 @@ func SetupRoutes(r *gin.Engine) {
 				admin.PATCH("/invoices/:id/cancel", handlers.CancelInvoice)
 				admin.PATCH("/purchase-orders/:id/cancel", handlers.CancelPurchaseOrder)
 				admin.POST("/inventory-checks/:id/confirm", handlers.ConfirmInventoryCheck)
+				admin.POST("/alerts/send-email", handlers.SendAlertEmail)
 			}
 		}
 	}

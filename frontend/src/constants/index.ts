@@ -65,7 +65,7 @@ export const USER_ROLES = {
 } as const;
 
 // Denominations for cash payment
-export const CASH_DENOMINATIONS = [20000, 50000, 100000, 200000, 500000];
+export const CASH_DENOMINATIONS = [10000, 20000, 50000, 100000, 200000, 500000];
 
 // Breakpoints (px)
 export const BREAKPOINTS = {

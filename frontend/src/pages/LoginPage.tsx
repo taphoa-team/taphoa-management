@@ -3,7 +3,7 @@ import { Form, Input, Button, Card, Typography, message } from 'antd';
 import { PhoneOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { APP_NAME } from '../utils/format';
+import { APP_NAME } from '../constants';
 
 export default function LoginPage() {
   const { login, user } = useAuth();
