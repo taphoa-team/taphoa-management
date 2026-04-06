@@ -8,6 +8,7 @@ import (
 
 	"taphoa-management/backend/config"
 	"taphoa-management/backend/models"
+	"taphoa-management/backend/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -98,6 +99,15 @@ func ListLowStockAlerts(c *gin.Context) {
 		result = []LowStockItem{}
 	}
 	c.JSON(http.StatusOK, result)
+}
+
+// SendAlertEmail — gửi email cảnh báo thủ công (admin bấm nút)
+func SendAlertEmail(c *gin.Context) {
+	if err := services.SendAlertEmail(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Đã gửi email cảnh báo"})
 }
 
 // GetAlertSummary — tổng hợp số lượng cảnh báo cho dashboard

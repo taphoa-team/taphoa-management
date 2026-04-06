@@ -19,6 +19,8 @@ import {
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { APP_NAME } from '../utils/format';
+import { Breadcrumbs } from './common';
+import ErrorBoundary from './ErrorBoundary';
 import type { MenuProps } from 'antd';
 
 const { Header, Content } = Layout;
@@ -99,22 +101,55 @@ export default function AppLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{
-        padding: '0 24px',
-        background: '#001529',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 24,
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-      }}>
-        {/* Logo */}
-        <Typography.Title level={4} style={{ color: '#fff', margin: 0, whiteSpace: 'nowrap', minWidth: 120 }}>
-          {APP_NAME}
-        </Typography.Title>
+      {/* 🎨 Header với gradient Teal - đồng bộ theme mới */}
+      <Header 
+        style={{
+          padding: '0 24px',
+          background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%)', // Gradient Teal
+          display: 'flex',
+          alignItems: 'center',
+          gap: 24,
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)', // Đổ bóng nhẹ
+        }}
+      >
+        {/* Logo với style mới */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+        }}>
+          <div style={{
+            width: 36,
+            height: 36,
+            background: 'rgba(255,255,255,0.2)',
+            borderRadius: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 20,
+            fontWeight: 'bold',
+            color: '#fff',
+          }}>
+            F
+          </div>
+          <Typography.Title 
+            level={4} 
+            style={{ 
+              color: '#fff', 
+              margin: 0, 
+              whiteSpace: 'nowrap',
+              fontWeight: 600,
+              letterSpacing: 0.5,
+            }}
+          >
+            {APP_NAME}
+          </Typography.Title>
+        </div>
 
-        {/* Menu ngang */}
+        {/* Menu ngang với style mới */}
         <Menu
           theme="dark"
           mode="horizontal"
@@ -123,24 +158,62 @@ export default function AppLayout() {
           items={menuItems}
           onClick={({ key }) => {
             if (!key.startsWith('/')) return; // skip group keys
+            if (key === '/pos') {
+              window.open(key, '_blank');
+              return;
+            }
             navigate(key);
           }}
-          style={{ flex: 1, minWidth: 0, borderBottom: 'none' }}
+          style={{ 
+            flex: 1, 
+            minWidth: 0, 
+            borderBottom: 'none',
+            background: 'transparent', // Trong suốt để thấy gradient
+          }}
         />
 
         {/* User info + logout */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, whiteSpace: 'nowrap' }}>
-          <Typography.Text style={{ color: 'rgba(255,255,255,0.65)' }}>
-            {user?.name} ({user?.role})
-          </Typography.Text>
-          <Button type="text" icon={<LogoutOutlined />} onClick={handleLogout} style={{ color: 'rgba(255,255,255,0.65)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, whiteSpace: 'nowrap' }}>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+          }}>
+            <Typography.Text style={{ color: '#fff', fontWeight: 500, fontSize: 14 }}>
+              {user?.name}
+            </Typography.Text>
+            <Typography.Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>
+              {user?.role === 'admin' ? 'Quản lý' : 'Nhân viên'}
+            </Typography.Text>
+          </div>
+          <Button 
+            type="primary" 
+            ghost
+            icon={<LogoutOutlined />} 
+            onClick={handleLogout}
+            style={{ 
+              color: '#fff',
+              borderColor: 'rgba(255,255,255,0.3)',
+              borderRadius: 8,
+            }}
+          >
             Thoát
           </Button>
         </div>
       </Header>
 
-      <Content style={{ margin: 24, padding: 24, background: colorBgContainer, borderRadius: borderRadiusLG, minHeight: 'calc(100vh - 112px)' }}>
-        <Outlet />
+      <Content style={{ 
+        margin: 24, 
+        padding: 24, 
+        background: colorBgContainer, 
+        borderRadius: borderRadiusLG, 
+        minHeight: 'calc(100vh - 112px)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)', // Đổ bóng nhẹ cho content
+      }}>
+        <Breadcrumbs />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </Content>
     </Layout>
   );

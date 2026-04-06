@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Button, Modal, Form, Input, message, Space, Typography, Tag } from 'antd';
+import { Table, Button, Modal, Form, Input, message, Space, Tag } from 'antd';
 import { PlusOutlined, EditOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Customer } from '../types';
 import { formatVND } from '../utils/format';
+import { PageHeader, EmptyState } from '../components/common';
+import { PAGE_SIZE, DEBOUNCE_DELAY } from '../constants';
 
 export default function CustomersPage() {
   const navigate = useNavigate();
@@ -19,18 +21,19 @@ export default function CustomersPage() {
 
   // Debounce search input
   useEffect(() => {
-    const timer = setTimeout(() => { setSearch(searchInput); setPage(1); }, 300);
+    const timer = setTimeout(() => { setSearch(searchInput); setPage(1); }, DEBOUNCE_DELAY);
     return () => clearTimeout(timer);
   }, [searchInput]);
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = { page, limit: 20 };
+      const params: any = { page, limit: PAGE_SIZE };
       if (search) params.search = search;
       const res = await api.get('/customers', { params });
       setCustomers(res.data || []);
-    } catch {
+    } catch (err) {
+      console.error('Error fetching customers:', err);
       message.error('Lỗi tải khách hàng');
     } finally {
       setLoading(false);
@@ -55,7 +58,8 @@ export default function CustomersPage() {
       setModalOpen(false);
       fetchCustomers();
     } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi');
+      console.error('Error saving customer:', err);
+      message.error(err.response?.data?.error || 'Lỗi lưu khách hàng');
     }
   };
 
@@ -84,16 +88,48 @@ export default function CustomersPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>Khách hàng</Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm KH</Button>
-      </div>
-      <Input prefix={<SearchOutlined />} placeholder="Tìm tên, SĐT..." value={searchInput}
-        onChange={(e) => setSearchInput(e.target.value)} allowClear style={{ width: 280, marginBottom: 16 }} />
-      <Table dataSource={customers} columns={columns} rowKey="id" loading={loading}
-        pagination={{ current: page, pageSize: 20, onChange: setPage, showSizeChanger: false }} size="middle" />
-      <Modal title={editing ? 'Sửa khách hàng' : 'Thêm khách hàng'} open={modalOpen}
-        onOk={handleSubmit} onCancel={() => setModalOpen(false)} okText={editing ? 'Cập nhật' : 'Thêm'} cancelText="Hủy">
+      <PageHeader
+        title="Khách hàng"
+        actionText="Thêm KH"
+        actionIcon={<PlusOutlined />}
+        onAction={openCreate}
+      />
+      <Input 
+        prefix={<SearchOutlined />} 
+        placeholder="Tìm tên, SĐT..." 
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)} 
+        allowClear 
+        style={{ width: 280, marginBottom: 16 }} 
+      />
+      <Table 
+        dataSource={customers} 
+        columns={columns} 
+        rowKey="id" 
+        loading={loading}
+        pagination={{ current: page, pageSize: PAGE_SIZE, onChange: setPage, showSizeChanger: false }} 
+        size="middle" 
+        locale={{
+          emptyText: (
+            <EmptyState
+              title="Chưa có khách hàng nào"
+              description="Thêm khách hàng đầu tiên để quản lý công nợ"
+              actionText="Thêm khách hàng"
+              onAction={openCreate}
+              showAction
+            />
+          ),
+        }}
+      />
+      <Modal 
+        title={editing ? 'Sửa khách hàng' : 'Thêm khách hàng'} 
+        open={modalOpen}
+        onOk={handleSubmit} 
+        onCancel={() => setModalOpen(false)} 
+        okText={editing ? 'Cập nhật' : 'Thêm'} 
+        cancelText="Hủy"
+        confirmLoading={loading}
+      >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="Tên" rules={[{ required: true, message: 'Nhập tên' }]}><Input /></Form.Item>
           <Form.Item name="phone" label="SĐT"><Input /></Form.Item>

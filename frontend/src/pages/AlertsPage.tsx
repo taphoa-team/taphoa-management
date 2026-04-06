@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Tabs, Table, Tag, Typography, Select, Space, Button, message } from 'antd';
-import { AlertOutlined, WarningOutlined } from '@ant-design/icons';
+import { AlertOutlined, WarningOutlined, MailOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { formatVND } from '../utils/format';
@@ -32,6 +32,7 @@ export default function AlertsPage() {
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
   const [loadingExpiry, setLoadingExpiry] = useState(false);
   const [loadingStock, setLoadingStock] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const fetchExpiry = useCallback(async () => {
     setLoadingExpiry(true);
@@ -59,6 +60,18 @@ export default function AlertsPage() {
 
   useEffect(() => { fetchExpiry(); }, [fetchExpiry]);
   useEffect(() => { fetchLowStock(); }, [fetchLowStock]);
+
+  const handleSendEmail = async () => {
+    setSendingEmail(true);
+    try {
+      await api.post('/alerts/send-email');
+      message.success('Đã gửi email cảnh báo');
+    } catch {
+      message.error('Gửi email thất bại. Kiểm tra cấu hình SMTP.');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
 
   const expiryColumns = [
     { title: 'Sản phẩm', dataIndex: ['product', 'name'], ellipsis: true },
@@ -116,7 +129,16 @@ export default function AlertsPage() {
 
   return (
     <div>
-      <Typography.Title level={4}>Cảnh báo</Typography.Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Typography.Title level={4} style={{ margin: 0 }}>Cảnh báo</Typography.Title>
+        <Button
+          icon={<MailOutlined />}
+          onClick={handleSendEmail}
+          loading={sendingEmail}
+        >
+          Gửi email cảnh báo
+        </Button>
+      </div>
 
       <Tabs
         defaultActiveKey="expiry"

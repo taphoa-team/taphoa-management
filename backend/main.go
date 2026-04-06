@@ -7,6 +7,7 @@ import (
 	"taphoa-management/backend/config"
 	"taphoa-management/backend/models"
 	"taphoa-management/backend/routes"
+	"taphoa-management/backend/services"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -65,6 +66,9 @@ func main() {
 		AllowHeaders:     []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,
 	}))
+
+	// Khởi động scheduler gửi email cảnh báo mỗi ngày 7h sáng
+	services.StartAlertScheduler()
 
 	// Đăng ký routes
 	routes.SetupRoutes(r)

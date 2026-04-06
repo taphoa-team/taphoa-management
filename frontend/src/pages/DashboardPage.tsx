@@ -171,16 +171,16 @@ export default function DashboardPage() {
           </Card>
         </Col>
 
-        {/* Hàng sắp hết kho */}
+        {/* Hàng sắp hết */}
         <Col xs={24} md={8}>
-          <Card title={<Space><WarningOutlined style={{ color: '#faad14' }} /> Sắp hết kho</Space>} size="small">
+          <Card title={<Space><WarningOutlined style={{ color: '#faad14' }} /> Sắp hết hàng</Space>} size="small">
             <Table
               dataSource={lowStock.slice(0, 8)}
               rowKey="id"
               size="small"
               pagination={false}
               loading={loading}
-              locale={{ emptyText: 'Tất cả đều đủ hàng' }}
+              locale={{ emptyText: 'Không có hàng nào sắp hết' }}
               columns={[
                 { title: 'Sản phẩm', dataIndex: 'name', ellipsis: true },
                 {
