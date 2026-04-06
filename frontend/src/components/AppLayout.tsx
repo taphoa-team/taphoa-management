@@ -28,7 +28,6 @@ const { Header, Content } = Layout;
 const menuItems: MenuProps['items'] = [
   { key: '/', icon: <DashboardOutlined />, label: 'Tổng quan' },
   { key: '/alerts', icon: <AlertOutlined />, label: 'Cảnh báo' },
-  { key: '/pos', icon: <ShoppingCartOutlined />, label: 'Bán hàng' },
   {
     key: 'sales',
     label: 'Đơn hàng',
@@ -69,6 +68,8 @@ const menuItems: MenuProps['items'] = [
       { key: '/debts', icon: <DollarOutlined />, label: 'Công nợ' },
     ],
   },
+  { type: 'divider' as const },
+  { key: '/pos', icon: <ShoppingCartOutlined />, label: 'Bán hàng' },
 ];
 
 // Tìm parent key cho submenu mở sẵn
@@ -164,11 +165,12 @@ export default function AppLayout() {
             }
             navigate(key);
           }}
-          style={{ 
-            flex: 1, 
-            minWidth: 0, 
+          style={{
+            flex: 1,
+            minWidth: 0,
             borderBottom: 'none',
-            background: 'transparent', // Trong suốt để thấy gradient
+            background: 'transparent',
+            fontSize: 15,
           }}
         />
 

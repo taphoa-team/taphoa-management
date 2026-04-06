@@ -19,6 +19,7 @@ export default function ProductsPage() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<number | undefined>();
   const [page, setPage] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
   // Debounce search input
@@ -78,7 +79,6 @@ export default function ProductsPage() {
     setModalOpen(true);
   };
 
-  const [submitting, setSubmitting] = useState(false);
   const handleSubmit = async () => {
     if (submitting) return;
     const values = await form.validateFields();
