@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Button, Modal, Form, Select, InputNumber, Input, DatePicker, message, Typography, Tag, Space } from 'antd';
+import { Table, Button, Modal, Form, Select, InputNumber, Input, DatePicker, message, Tag, Space, Typography } from 'antd';
 import { PlusOutlined, MinusCircleOutlined, EyeOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { PurchaseOrder, Supplier, Product } from '../types';
 import { formatVND } from '../utils/format';
+import { PageHeader } from '../components/common';
 
 export default function PurchaseOrdersPage() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
@@ -83,10 +84,12 @@ export default function PurchaseOrdersPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>Nhập hàng</Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Tạo đơn nhập</Button>
-      </div>
+      <PageHeader
+        title="Nhập hàng"
+        actionText="Tạo đơn nhập"
+        actionIcon={<PlusOutlined />}
+        onAction={() => { form.resetFields(); setModalOpen(true); }}
+      />
       <Table dataSource={orders} columns={columns} rowKey="id" loading={loading}
         pagination={{ current: page, pageSize: 20, onChange: setPage, showSizeChanger: false }} size="middle" />
 

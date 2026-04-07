@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Tabs, Table, Tag, Typography, Select, Space, Button, message } from 'antd';
+import { Tabs, Table, Tag, Select, Space, Button, message, Typography } from 'antd';
 import { AlertOutlined, WarningOutlined, MailOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { formatVND } from '../utils/format';
+import { PageHeader } from '../components/common';
 
 interface ExpiryItem {
   id: number;
@@ -129,16 +130,16 @@ export default function AlertsPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>Cảnh báo</Typography.Title>
-        <Button
+      <PageHeader
+        title="Cảnh báo"
+        extra={<Button
           icon={<MailOutlined />}
           onClick={handleSendEmail}
           loading={sendingEmail}
         >
           Gửi email cảnh báo
-        </Button>
-      </div>
+        </Button>}
+      />
 
       <Tabs
         defaultActiveKey="expiry"

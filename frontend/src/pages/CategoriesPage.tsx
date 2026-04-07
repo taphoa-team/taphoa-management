@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Input, message, Popconfirm, Space, Typography } from 'antd';
+import { Table, Button, Modal, Form, Input, message, Popconfirm, Space } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { Category } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { PageHeader, EmptyState } from '../components/common';
 
 export default function CategoriesPage() {
   const { user } = useAuth();
@@ -87,10 +88,12 @@ export default function CategoriesPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>Nhóm hàng</Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm nhóm</Button>
-      </div>
+      <PageHeader
+        title="Nhóm hàng"
+        actionText="Thêm nhóm"
+        actionIcon={<PlusOutlined />}
+        onAction={openCreate}
+      />
       <Table
         dataSource={categories}
         columns={columns}
@@ -98,6 +101,17 @@ export default function CategoriesPage() {
         loading={loading}
         pagination={false}
         size="middle"
+        locale={{
+          emptyText: (
+            <EmptyState
+              title="Chưa có nhóm hàng nào"
+              description="Thêm nhóm hàng đầu tiên để phân loại sản phẩm"
+              actionText="Thêm nhóm hàng"
+              onAction={openCreate}
+              showAction
+            />
+          ),
+        }}
       />
       <Modal
         title={editing ? 'Sửa nhóm hàng' : 'Thêm nhóm hàng'}

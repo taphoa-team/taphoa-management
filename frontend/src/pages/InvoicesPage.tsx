@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Typography, Tag, DatePicker, Space, Button, message, Popconfirm } from 'antd';
+import { Table, Tag, DatePicker, Space, Button, message, Popconfirm } from 'antd';
 import { EyeOutlined, StopOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Invoice } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { formatVND } from '../utils/format';
+import { PageHeader } from '../components/common';
 
 export default function InvoicesPage() {
   const { user } = useAuth();
@@ -68,7 +69,7 @@ export default function InvoicesPage() {
 
   return (
     <div>
-      <Typography.Title level={4}>Đơn hàng</Typography.Title>
+      <PageHeader title="Đơn hàng" />
       <Space style={{ marginBottom: 16 }}>
         <DatePicker placeholder="Lọc theo ngày" onChange={(d) => { setDate(d ? d.format('YYYY-MM-DD') : ''); setPage(1); }} />
       </Space>

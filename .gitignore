@@ -23,6 +23,7 @@ build
 
 # Backend
 backend/tmp/
+taphoa-server
 
 # Local files
 *.local

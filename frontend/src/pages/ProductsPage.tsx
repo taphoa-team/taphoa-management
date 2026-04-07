@@ -20,6 +20,9 @@ export default function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState<number | undefined>();
   const [page, setPage] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [categoryForm] = Form.useForm();
+  const [creatingCategory, setCreatingCategory] = useState(false);
   const [form] = Form.useForm();
 
   // Debounce search input
@@ -54,13 +57,32 @@ export default function ProductsPage() {
     }
   };
 
+  const handleCreateCategory = async () => {
+    if (creatingCategory) return;
+    const values = await categoryForm.validateFields();
+    setCreatingCategory(true);
+    try {
+      const res = await api.post('/categories', values);
+      message.success('Đã tạo nhóm hàng');
+      setCategoryModalOpen(false);
+      categoryForm.resetFields();
+      await fetchCategories();
+      // Auto select new category
+      form.setFieldsValue({ category_id: res.data.id });
+    } catch (err: any) {
+      message.error(err.response?.data?.error || 'Lỗi tạo nhóm hàng');
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
   useEffect(() => { fetchCategories(); }, []);
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   const openCreate = () => {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ has_expiry: false });
+    form.setFieldsValue({ has_expiry: true });
     setModalOpen(true);
   };
 
@@ -189,26 +211,21 @@ export default function ProductsPage() {
     doc.write(html);
     doc.close();
 
-    // Đợi load xong rồi in
-    iframe.onload = () => {
+    // Đợi load xong rồi in (dùng flag tránh gọi print() 2 lần)
+    let printed = false;
+    const doPrint = () => {
+      if (printed) return;
+      printed = true;
       iframe.contentWindow?.print();
-      // Xóa iframe sau khi in
       setTimeout(() => {
         if (document.body.contains(iframe)) {
           document.body.removeChild(iframe);
         }
       }, 1000);
     };
-
+    iframe.onload = doPrint;
     // Fallback nếu onload không trigger
-    setTimeout(() => {
-      iframe.contentWindow?.print();
-      setTimeout(() => {
-        if (document.body.contains(iframe)) {
-          document.body.removeChild(iframe);
-        }
-      }, 1000);
-    }, 500);
+    setTimeout(doPrint, 500);
   };
 
   const columns = [
@@ -335,6 +352,23 @@ export default function ProductsPage() {
               <Select
                 placeholder="Chọn nhóm"
                 options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                dropdownRender={(menu) => (
+                  <>
+                    {menu}
+                    <Divider style={{ margin: '8px 0' }} />
+                    <Button
+                      type="link"
+                      icon={<PlusOutlined />}
+                      onClick={() => {
+                        categoryForm.resetFields();
+                        setCategoryModalOpen(true);
+                      }}
+                      style={{ width: '100%', justifyContent: 'flex-start' }}
+                    >
+                      Tạo nhóm hàng mới
+                    </Button>
+                  </>
+                )}
               />
             </Form.Item>
             <Form.Item name="unit" label="Đơn vị tính" rules={[{ required: true, message: 'Nhập ĐVT' }]}>
@@ -386,21 +420,41 @@ export default function ProductsPage() {
                   ]}
                 />
               )}
-              <Form form={convForm} layout="inline" style={{ marginBottom: 8 }}>
-                <Form.Item name="from_unit" rules={[{ required: true, message: 'Nhập' }]}>
-                  <Input placeholder="thùng" style={{ width: 90 }} />
+              <Form form={convForm} layout="inline" style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <Form.Item name="from_unit" rules={[{ required: true, message: 'Nhập' }]} style={{ marginBottom: 0, flex: 1 }}>
+                  <Input placeholder="thùng" style={{ width: '100%' }} />
                 </Form.Item>
-                <span style={{ lineHeight: '32px' }}>=</span>
-                <Form.Item name="conversion_rate" rules={[{ required: true, message: 'Nhập' }]}>
-                  <InputNumber min={1} placeholder="24" style={{ width: 70 }} />
+                <span style={{ lineHeight: '32px', flexShrink: 0 }}>=</span>
+                <Form.Item name="conversion_rate" rules={[{ required: true, message: 'Nhập' }]} style={{ marginBottom: 0, width: 80 }}>
+                  <InputNumber min={1} placeholder="24" style={{ width: '100%' }} />
                 </Form.Item>
-                <Form.Item name="to_unit" rules={[{ required: true, message: 'Nhập' }]}>
-                  <Input placeholder="chai" style={{ width: 90 }} />
+                <Form.Item name="to_unit" rules={[{ required: true, message: 'Nhập' }]} style={{ marginBottom: 0, flex: 1 }}>
+                  <Input placeholder="chai" style={{ width: '100%' }} />
                 </Form.Item>
-                <Button icon={<PlusOutlined />} onClick={addConversion}>Thêm</Button>
+                <Button icon={<PlusOutlined />} onClick={addConversion} style={{ flexShrink: 0 }}>Thêm</Button>
               </Form>
             </>
           )}
+        </Form>
+      </Modal>
+
+      {/* Modal tạo nhóm hàng nhanh */}
+      <Modal
+        title="Tạo nhóm hàng mới"
+        open={categoryModalOpen}
+        onOk={handleCreateCategory}
+        onCancel={() => setCategoryModalOpen(false)}
+        okText="Tạo"
+        cancelText="Hủy"
+        confirmLoading={creatingCategory}
+      >
+        <Form form={categoryForm} layout="vertical">
+          <Form.Item name="name" label="Tên nhóm hàng" rules={[{ required: true, message: 'Nhập tên nhóm' }]}>
+            <Input placeholder="VD: Đồ uống, Bánh kẹo..." />
+          </Form.Item>
+          <Form.Item name="description" label="Mô tả">
+            <Input.TextArea rows={3} placeholder="Mô tả nhóm hàng (tùy chọn)" />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Typography, Tag, Input, message } from 'antd';
+import { Table, Tag, Input, message } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { InventoryItem } from '../types';
 import { formatVND } from '../utils/format';
+import { PageHeader } from '../components/common';
 
 export default function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -47,7 +48,7 @@ export default function InventoryPage() {
 
   return (
     <div>
-      <Typography.Title level={4}>Tồn kho</Typography.Title>
+      <PageHeader title="Tồn kho" />
       <Input prefix={<SearchOutlined />} placeholder="Tìm sản phẩm..." value={search}
         onChange={(e) => setSearch(e.target.value)} allowClear style={{ width: 280, marginBottom: 16 }} />
       <Table dataSource={items} columns={columns} rowKey="id" loading={loading} pagination={{ pageSize: 50 }} size="middle" />

@@ -72,7 +72,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <Typography.Title level={3} style={{ marginBottom: 24 }}>
+      <Typography.Title level={4} style={{ marginBottom: 24 }}>
         Xin chào, {user?.name}!
       </Typography.Title>
 

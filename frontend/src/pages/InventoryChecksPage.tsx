@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Button, message, Typography, Tag, Modal, InputNumber } from 'antd';
+import { Table, Button, message, Tag, Modal, InputNumber } from 'antd';
 import { PlusOutlined, CheckOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { InventoryCheck } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { PageHeader } from '../components/common';
 
 export default function InventoryChecksPage() {
   const { user } = useAuth();
@@ -110,10 +111,12 @@ export default function InventoryChecksPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>Kiểm kê kho</Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>Tạo đợt kiểm kê</Button>
-      </div>
+      <PageHeader
+        title="Kiểm kê kho"
+        actionText="Tạo đợt kiểm kê"
+        actionIcon={<PlusOutlined />}
+        onAction={handleCreate}
+      />
       <Table dataSource={checks} columns={columns} rowKey="id" loading={loading} pagination={{ pageSize: 20 }} size="middle" />
 
       <Modal title={`Kiểm kê #${detailCheck?.id}`} open={!!detailCheck} onCancel={() => setDetailCheck(null)}

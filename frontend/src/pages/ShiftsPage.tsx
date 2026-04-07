@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Button, Modal, Form, InputNumber, Input, message, Typography, Tag, Space, Descriptions } from 'antd';
+import { Table, Button, Modal, Form, InputNumber, Input, message, Tag, Space, Descriptions } from 'antd';
 import { PlayCircleOutlined, StopOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { Shift } from '../types';
 import { formatVND } from '../utils/format';
+import { PageHeader } from '../components/common';
 
 export default function ShiftsPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -99,20 +100,22 @@ export default function ShiftsPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>Ca bán hàng</Typography.Title>
-        <Space>
-          {currentShift ? (
-            <Button type="primary" danger icon={<StopOutlined />} onClick={() => setCloseModal(true)}>
-              Đóng ca
-            </Button>
-          ) : (
-            <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => { openForm.resetFields(); setOpenModal(true); }}>
-              Mở ca
-            </Button>
-          )}
-        </Space>
-      </div>
+      <PageHeader
+        title="Ca bán hàng"
+        extra={
+          <Space>
+            {currentShift ? (
+              <Button type="primary" danger icon={<StopOutlined />} onClick={() => setCloseModal(true)}>
+                Đóng ca
+              </Button>
+            ) : (
+              <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => { openForm.resetFields(); setOpenModal(true); }}>
+                Mở ca
+              </Button>
+            )}
+          </Space>
+        }
+      />
       {currentShift && (
         <Descriptions bordered size="small" column={3} style={{ marginBottom: 16 }}>
           <Descriptions.Item label="Ca hiện tại">#{currentShift.id}</Descriptions.Item>

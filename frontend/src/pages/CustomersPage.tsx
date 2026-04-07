@@ -90,6 +90,7 @@ export default function CustomersPage() {
     <div>
       <PageHeader
         title="Khách hàng"
+        subtitle="Quản lý danh sách khách hàng và công nợ"
         actionText="Thêm KH"
         actionIcon={<PlusOutlined />}
         onAction={openCreate}

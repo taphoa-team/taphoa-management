@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Input, message, Popconfirm, Space, Typography } from 'antd';
+import { Table, Button, Modal, Form, Input, message, Popconfirm, Space } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { Supplier } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { PageHeader, EmptyState } from '../components/common';
 
 export default function SuppliersPage() {
   const { user } = useAuth();
@@ -90,10 +91,12 @@ export default function SuppliersPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>Nhà cung cấp</Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm NCC</Button>
-      </div>
+      <PageHeader
+        title="Nhà cung cấp"
+        actionText="Thêm NCC"
+        actionIcon={<PlusOutlined />}
+        onAction={openCreate}
+      />
       <Table
         dataSource={suppliers}
         columns={columns}
@@ -101,6 +104,17 @@ export default function SuppliersPage() {
         loading={loading}
         pagination={{ pageSize: 20 }}
         size="middle"
+        locale={{
+          emptyText: (
+            <EmptyState
+              title="Chưa có nhà cung cấp nào"
+              description="Thêm nhà cung cấp đầu tiên để quản lý nhập hàng"
+              actionText="Thêm nhà cung cấp"
+              onAction={openCreate}
+              showAction
+            />
+          ),
+        }}
       />
       <Modal
         title={editing ? 'Sửa nhà cung cấp' : 'Thêm nhà cung cấp'}

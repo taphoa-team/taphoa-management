@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Typography, Tag, Button, Modal, InputNumber, Input, message, Space } from 'antd';
+import { Table, Tag, Button, Modal, InputNumber, Input, message, Space, Typography } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { Return, Invoice, InvoiceItem } from '../types';
 import { formatVND } from '../utils/format';
+import { PageHeader } from '../components/common';
 
 export default function ReturnsPage() {
   const [returns, setReturns] = useState<Return[]>([]);
@@ -108,10 +109,12 @@ export default function ReturnsPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>Trả hàng</Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>Tạo phiếu trả</Button>
-      </div>
+      <PageHeader
+        title="Trả hàng"
+        actionText="Tạo phiếu trả"
+        actionIcon={<PlusOutlined />}
+        onAction={() => setModalOpen(true)}
+      />
 
       <Table dataSource={returns} columns={columns} rowKey="id" loading={loading}
         pagination={{ current: page, pageSize: 20, onChange: setPage, showSizeChanger: false }} size="middle" />

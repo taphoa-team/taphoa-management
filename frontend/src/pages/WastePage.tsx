@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Button, Modal, Form, Select, InputNumber, Input, message, Typography } from 'antd';
+import { Table, Button, Modal, Form, Select, InputNumber, Input, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { WasteRecord, Product, ProductBatch } from '../types';
 import { formatVND } from '../utils/format';
+import { PageHeader } from '../components/common';
 
 export default function WastePage() {
   const [records, setRecords] = useState<WasteRecord[]>([]);
@@ -64,10 +65,12 @@ export default function WastePage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>Xuất hủy</Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setBatches([]); setModalOpen(true); }}>Tạo phiếu hủy</Button>
-      </div>
+      <PageHeader
+        title="Xuất hủy"
+        actionText="Tạo phiếu hủy"
+        actionIcon={<PlusOutlined />}
+        onAction={() => { form.resetFields(); setBatches([]); setModalOpen(true); }}
+      />
       <Table dataSource={records} columns={columns} rowKey="id" loading={loading}
         pagination={{ current: page, pageSize: 20, onChange: setPage, showSizeChanger: false }} size="middle" />
 

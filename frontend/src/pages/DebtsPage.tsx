@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Typography, Tag, Button, message } from 'antd';
+import { Table, Tag, Button, message } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Customer } from '../types';
 import { formatVND } from '../utils/format';
+import { PageHeader } from '../components/common';
 
 export default function DebtsPage() {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ export default function DebtsPage() {
 
   return (
     <div>
-      <Typography.Title level={4}>Công nợ khách hàng</Typography.Title>
+      <PageHeader title="Công nợ khách hàng" />
       <Table dataSource={customers} columns={columns} rowKey="id" loading={loading} pagination={{ pageSize: 20 }} size="middle" />
     </div>
   );

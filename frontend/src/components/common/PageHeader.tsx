@@ -11,21 +11,12 @@ interface PageHeaderProps {
   onAction?: () => void;
   actionProps?: ButtonProps;
   extra?: React.ReactNode;
-  showAction?: boolean;
 }
 
 /**
  * Component PageHeader dùng chung cho các trang quản lý
  * Đồng nhất layout: [Tiêu đề] + [Nút primary action]
- * 
- * @example
- * <PageHeader
- *   title="Sản phẩm"
- *   subtitle="Quản lý danh sách sản phẩm"
- *   actionText="Thêm SP"
- *   actionIcon={<PlusOutlined />}
- *   onAction={() => openCreate()}
- * />
+ * Nếu không truyền onAction → tự ẩn nút action
  */
 export const PageHeader: React.FC<PageHeaderProps> = ({
   title,
@@ -35,7 +26,6 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   onAction,
   actionProps,
   extra,
-  showAction = true,
 }) => {
   return (
     <div style={pageHeaderStyle}>
@@ -51,7 +41,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       </div>
       <Space>
         {extra}
-        {showAction && onAction && (
+        {onAction && (
           <Button type="primary" icon={actionIcon} onClick={onAction} {...actionProps}>
             {actionText}
           </Button>

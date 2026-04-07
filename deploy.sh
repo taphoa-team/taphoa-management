@@ -9,6 +9,7 @@ cd "$PROJECT_DIR"
 
 echo "=== Build frontend ==="
 cd frontend
+npm ci
 npm run build
 cd ..
 

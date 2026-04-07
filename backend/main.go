@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"taphoa-management/backend/config"
 	"taphoa-management/backend/models"
@@ -57,17 +61,16 @@ func main() {
 	// Khởi tạo router
 	r := gin.Default()
 
-	// FIX 2.6 + R12: CORS cho frontend, đọc từ env
+	// CORS — chỉ bật khi dev (có FRONTEND_URL), production serve static nên không cần
 	frontendURL := os.Getenv("FRONTEND_URL")
-	if frontendURL == "" {
-		frontendURL = "http://localhost:3001"
+	if frontendURL != "" {
+		r.Use(cors.New(cors.Config{
+			AllowOrigins:     []string{frontendURL},
+			AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+			AllowHeaders:     []string{"Authorization", "Content-Type"},
+			AllowCredentials: true,
+		}))
 	}
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{frontendURL},
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
-		AllowHeaders:     []string{"Authorization", "Content-Type"},
-		AllowCredentials: true,
-	}))
 
 	// Khởi động scheduler gửi email cảnh báo mỗi ngày 7h sáng (VN time)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -78,39 +81,52 @@ func main() {
 	routes.SetupRoutes(r)
 
 	// Serve frontend tĩnh nếu có thư mục build
+	// Dùng r.Static + r.NoRoute thay vì middleware tự viết → an toàn, không bị path traversal
 	staticDir := os.Getenv("STATIC_DIR")
 	if staticDir == "" {
 		staticDir = "../frontend/build"
 	}
 	if info, err := os.Stat(staticDir); err == nil && info.IsDir() {
-		r.Use(func(c *gin.Context) {
-			path := c.Request.URL.Path
-			// Bỏ qua API routes
-			if strings.HasPrefix(path, "/api") || path == "/health" {
-				c.Next()
+		r.Static("/static", staticDir+"/static")
+		r.StaticFile("/favicon.ico", staticDir+"/favicon.ico")
+		r.StaticFile("/manifest.json", staticDir+"/manifest.json")
+		r.StaticFile("/robots.txt", staticDir+"/robots.txt")
+		// SPA fallback — mọi route không match → trả index.html (trừ /api)
+		r.NoRoute(func(c *gin.Context) {
+			if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+				c.JSON(404, gin.H{"error": "Not found"})
 				return
 			}
-			// Thử serve file tĩnh
-			filePath := staticDir + path
-			if _, err := os.Stat(filePath); err == nil {
-				c.File(filePath)
-				c.Abort()
-				return
-			}
-			// Fallback → index.html (SPA routing)
 			c.File(staticDir + "/index.html")
-			c.Abort()
 		})
 		log.Printf("Serving frontend from %s", staticDir)
 	}
 
-	// Chạy server
+	// Chạy server với graceful shutdown
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8082"
 	}
-	log.Printf("Server running on http://localhost:%s", port)
-	r.Run(":" + port)
+	srv := &http.Server{Addr: ":" + port, Handler: r}
+	go func() {
+		log.Printf("Server running on http://localhost:%s", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal("Server error:", err)
+		}
+	}()
+
+	// Chờ tín hiệu tắt, cho request đang chạy hoàn thành (tối đa 5 giây)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server...")
+	cancel() // Dừng alert scheduler trước
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+	}
+	log.Println("Server stopped")
 }
 
 func seedAdmin() {
