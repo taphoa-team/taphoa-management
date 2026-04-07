@@ -104,6 +104,7 @@ export default function POSPage() {
     api.get('/shifts/current')
       .then((r) => setCurrentShift(r.data))
       .catch(() => setCurrentShift(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Debounce search trong modal
