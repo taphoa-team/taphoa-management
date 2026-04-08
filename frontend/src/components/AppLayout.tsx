@@ -15,6 +15,7 @@ import {
   DashboardOutlined,
   ClockCircleOutlined,
   AlertOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,56 +26,65 @@ import type { MenuProps } from 'antd';
 
 const { Header, Content } = Layout;
 
-const menuItems: MenuProps['items'] = [
-  { key: '/', icon: <DashboardOutlined />, label: 'Tổng quan' },
-  { key: '/alerts', icon: <AlertOutlined />, label: 'Cảnh báo' },
-  {
-    key: 'sales',
-    label: 'Đơn hàng',
-    icon: <FileTextOutlined />,
-    children: [
-      { key: '/invoices', icon: <FileTextOutlined />, label: 'Lịch sử đơn' },
-      { key: '/shifts', icon: <ClockCircleOutlined />, label: 'Ca bán hàng' },
-      { key: '/returns', icon: <SwapOutlined />, label: 'Trả hàng' },
-    ],
-  },
-  {
-    key: 'products',
-    label: 'Hàng hóa',
-    icon: <AppstoreOutlined />,
-    children: [
-      { key: '/products', icon: <AppstoreOutlined />, label: 'Sản phẩm' },
-      { key: '/categories', icon: <AppstoreOutlined />, label: 'Nhóm hàng' },
-    ],
-  },
-  {
-    key: 'inventory',
-    label: 'Kho',
-    icon: <InboxOutlined />,
-    children: [
-      { key: '/inventory', icon: <InboxOutlined />, label: 'Tồn kho' },
-      { key: '/purchase-orders', icon: <ShopOutlined />, label: 'Nhập hàng' },
-      { key: '/suppliers', icon: <ShopOutlined />, label: 'Nhà cung cấp' },
-      { key: '/inventory-checks', icon: <AuditOutlined />, label: 'Kiểm kê' },
-      { key: '/waste', icon: <DeleteOutlined />, label: 'Xuất hủy' },
-    ],
-  },
-  {
-    key: 'customers',
-    label: 'Khách hàng',
-    icon: <TeamOutlined />,
-    children: [
-      { key: '/customers', icon: <TeamOutlined />, label: 'Danh sách' },
-      { key: '/debts', icon: <DollarOutlined />, label: 'Công nợ' },
-    ],
-  },
-  { type: 'divider' as const },
-  { key: '/pos', icon: <ShoppingCartOutlined />, label: 'Bán hàng' },
-];
+function getMenuItems(role?: string): MenuProps['items'] {
+  const items: MenuProps['items'] = [
+    { key: '/', icon: <DashboardOutlined />, label: 'Tổng quan' },
+    { key: '/alerts', icon: <AlertOutlined />, label: 'Cảnh báo' },
+    {
+      key: 'sales',
+      label: 'Đơn hàng',
+      icon: <FileTextOutlined />,
+      children: [
+        { key: '/invoices', icon: <FileTextOutlined />, label: 'Lịch sử đơn' },
+        { key: '/shifts', icon: <ClockCircleOutlined />, label: 'Ca bán hàng' },
+        { key: '/returns', icon: <SwapOutlined />, label: 'Trả hàng' },
+      ],
+    },
+    {
+      key: 'products',
+      label: 'Hàng hóa',
+      icon: <AppstoreOutlined />,
+      children: [
+        { key: '/products', icon: <AppstoreOutlined />, label: 'Sản phẩm' },
+        { key: '/categories', icon: <AppstoreOutlined />, label: 'Nhóm hàng' },
+      ],
+    },
+    {
+      key: 'inventory',
+      label: 'Kho',
+      icon: <InboxOutlined />,
+      children: [
+        { key: '/inventory', icon: <InboxOutlined />, label: 'Tồn kho' },
+        { key: '/purchase-orders', icon: <ShopOutlined />, label: 'Nhập hàng' },
+        { key: '/suppliers', icon: <ShopOutlined />, label: 'Nhà cung cấp' },
+        { key: '/inventory-checks', icon: <AuditOutlined />, label: 'Kiểm kê' },
+        { key: '/waste', icon: <DeleteOutlined />, label: 'Xuất hủy' },
+      ],
+    },
+    {
+      key: 'customers',
+      label: 'Khách hàng',
+      icon: <TeamOutlined />,
+      children: [
+        { key: '/customers', icon: <TeamOutlined />, label: 'Danh sách' },
+        { key: '/debts', icon: <DollarOutlined />, label: 'Công nợ' },
+      ],
+    },
+  ];
+
+  if (role === 'admin') {
+    items.push({ key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' });
+  }
+
+  items.push({ type: 'divider' as const });
+  items.push({ key: '/pos', icon: <ShoppingCartOutlined />, label: 'Bán hàng' });
+
+  return items;
+}
 
 // Tìm parent key cho submenu mở sẵn
-function getOpenKey(pathname: string): string[] {
-  for (const item of menuItems || []) {
+function getOpenKey(pathname: string, items: MenuProps['items']): string[] {
+  for (const item of items || []) {
     if (item && 'children' in item && item.children) {
       for (const child of item.children) {
         if (child && 'key' in child && child.key === pathname) {
@@ -99,6 +109,7 @@ export default function AppLayout() {
 
   // Match /customers/:id → /customers, /invoices/:id → /invoices
   const selectedKey = location.pathname.replace(/\/\d+$/, '') || '/';
+  const menuItems = getMenuItems(user?.role);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -155,7 +166,7 @@ export default function AppLayout() {
           theme="dark"
           mode="horizontal"
           selectedKeys={[selectedKey]}
-          defaultOpenKeys={getOpenKey(selectedKey)}
+          defaultOpenKeys={getOpenKey(selectedKey, menuItems)}
           items={menuItems}
           onClick={({ key }) => {
             if (!key.startsWith('/')) return; // skip group keys
