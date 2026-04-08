@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Button, Modal, Form, Select, InputNumber, Input, DatePicker, message, Tag, Space, Typography } from 'antd';
+import { Table, Button, Modal, Form, Select, InputNumber, Input, DatePicker, message, Tag, Space, Typography, Divider } from 'antd';
 import { PlusOutlined, MinusCircleOutlined, EyeOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { PurchaseOrder, Supplier, Product } from '../types';
@@ -15,6 +15,9 @@ export default function PurchaseOrdersPage() {
   const [detailModal, setDetailModal] = useState<PurchaseOrder | null>(null);
   const [page, setPage] = useState(1);
   const [form] = Form.useForm();
+  const [supplierModalOpen, setSupplierModalOpen] = useState(false);
+  const [supplierForm] = Form.useForm();
+  const [creatingSupplier, setCreatingSupplier] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -27,10 +30,35 @@ export default function PurchaseOrdersPage() {
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  useEffect(() => {
-    api.get('/suppliers').then((r) => setSuppliers(r.data || [])).catch(() => message.error('Lỗi tải dữ liệu'));
-    api.get('/products', { params: { limit: 100 } }).then((r) => setProducts(r.data || [])).catch(() => message.error('Lỗi tải dữ liệu'));
+  const fetchSuppliers = useCallback(async () => {
+    try {
+      const r = await api.get('/suppliers');
+      setSuppliers(r.data || []);
+    } catch { message.error('Lỗi tải NCC'); }
   }, []);
+
+  useEffect(() => {
+    fetchSuppliers();
+    api.get('/products', { params: { limit: 100 } }).then((r) => setProducts(r.data || [])).catch(() => message.error('Lỗi tải dữ liệu'));
+  }, [fetchSuppliers]);
+
+  const handleCreateSupplier = async () => {
+    if (creatingSupplier) return;
+    const values = await supplierForm.validateFields();
+    setCreatingSupplier(true);
+    try {
+      const res = await api.post('/suppliers', values);
+      message.success('Đã tạo NCC');
+      setSupplierModalOpen(false);
+      await fetchSuppliers();
+      // Auto-select NCC vừa tạo
+      form.setFieldValue('supplier_id', res.data.id);
+    } catch (err: any) {
+      message.error(err.response?.data?.error || 'Lỗi tạo NCC');
+    } finally {
+      setCreatingSupplier(false);
+    }
+  };
 
   const handleSubmit = async () => {
     const values = await form.validateFields();
@@ -100,7 +128,22 @@ export default function PurchaseOrdersPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <Form.Item name="supplier_id" label="Nhà cung cấp" rules={[{ required: true, message: 'Chọn NCC' }]}>
               <Select placeholder="Chọn NCC" options={suppliers.map((s) => ({ value: s.id, label: s.name }))} showSearch
-                filterOption={(input, option) => (option?.label as string)?.toLowerCase().includes(input.toLowerCase())} />
+                filterOption={(input, option) => (option?.label as string)?.toLowerCase().includes(input.toLowerCase())}
+                dropdownRender={(menu) => (
+                  <>
+                    {menu}
+                    <Divider style={{ margin: '8px 0' }} />
+                    <Button
+                      type="link"
+                      icon={<PlusOutlined />}
+                      onClick={() => { supplierForm.resetFields(); setSupplierModalOpen(true); }}
+                      style={{ width: '100%', justifyContent: 'flex-start' }}
+                    >
+                      Tạo NCC mới
+                    </Button>
+                  </>
+                )}
+              />
             </Form.Item>
             <Form.Item name="paid" label="Đã thanh toán (VNĐ)"><InputNumber min={0} style={{ width: '100%' }}
               formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} /></Form.Item>
@@ -152,6 +195,34 @@ export default function PurchaseOrdersPage() {
             />
           </>
         )}
+      </Modal>
+
+      {/* Modal tạo NCC mới */}
+      <Modal
+        title="Tạo nhà cung cấp mới"
+        open={supplierModalOpen}
+        onOk={handleCreateSupplier}
+        onCancel={() => setSupplierModalOpen(false)}
+        okText="Tạo"
+        cancelText="Hủy"
+        confirmLoading={creatingSupplier}
+      >
+        <Form form={supplierForm} layout="vertical">
+          <Form.Item name="name" label="Tên NCC" rules={[{ required: true, message: 'Nhập tên NCC' }]}>
+            <Input placeholder="VD: Đại lý Minh Phát" />
+          </Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <Form.Item name="phone" label="Số điện thoại">
+              <Input placeholder="VD: 0901234567" />
+            </Form.Item>
+            <Form.Item name="address" label="Địa chỉ">
+              <Input placeholder="VD: 123 Lê Lợi, Q.1" />
+            </Form.Item>
+          </div>
+          <Form.Item name="note" label="Ghi chú">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );
