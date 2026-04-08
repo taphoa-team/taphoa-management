@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -178,13 +179,16 @@ func GetProfitReport(c *gin.Context) {
 
 	err = config.DB.Raw(`
 		SELECT
-			TO_CHAR(i.created_at, 'YYYY-MM-DD')           AS date,
-			COALESCE(SUM(i.final_total), 0)                AS revenue,
-			COALESCE(SUM(ii.cost_price * ii.quantity), 0)  AS cogs,
-			COALESCE(SUM(i.final_total), 0)
-				- COALESCE(SUM(ii.cost_price * ii.quantity), 0) AS profit
+			TO_CHAR(i.created_at, 'YYYY-MM-DD') AS date,
+			COALESCE(SUM(i.final_total), 0) AS revenue,
+			COALESCE(SUM(item_cogs.cogs), 0) AS cogs,
+			COALESCE(SUM(i.final_total), 0) - COALESCE(SUM(item_cogs.cogs), 0) AS profit
 		FROM invoices i
-		JOIN invoice_items ii ON ii.invoice_id = i.id
+		LEFT JOIN (
+			SELECT invoice_id, SUM(cost_price * quantity) AS cogs
+			FROM invoice_items
+			GROUP BY invoice_id
+		) item_cogs ON item_cogs.invoice_id = i.id
 		WHERE i.status = 'completed'
 		  AND i.created_at >= ?
 		  AND i.created_at <= ?
@@ -303,32 +307,43 @@ type CompareReport struct {
 
 // getPeriodSummary returns revenue/cogs/profit/invoice_count for a time range.
 func getPeriodSummary(from, to time.Time) (ComparePeriod, error) {
-	var result struct {
+	var revenueResult struct {
 		Revenue      int
-		COGS         int
 		InvoiceCount int
 	}
 
 	err := config.DB.Raw(`
-		SELECT
-			COALESCE(SUM(i.final_total), 0)                AS revenue,
-			COALESCE(SUM(ii.cost_price * ii.quantity), 0)  AS cogs,
-			COUNT(DISTINCT i.id)                           AS invoice_count
-		FROM invoices i
-		JOIN invoice_items ii ON ii.invoice_id = i.id
+		SELECT COALESCE(SUM(final_total), 0) AS revenue, COUNT(*) AS invoice_count
+		FROM invoices
+		WHERE status = 'completed'
+		  AND created_at >= ?
+		  AND created_at <= ?
+	`, from, to).Scan(&revenueResult).Error
+	if err != nil {
+		return ComparePeriod{}, err
+	}
+
+	var cogsResult struct {
+		COGS int
+	}
+
+	err = config.DB.Raw(`
+		SELECT COALESCE(SUM(ii.cost_price * ii.quantity), 0) AS cogs
+		FROM invoice_items ii
+		JOIN invoices i ON i.id = ii.invoice_id
 		WHERE i.status = 'completed'
 		  AND i.created_at >= ?
 		  AND i.created_at <= ?
-	`, from, to).Scan(&result).Error
+	`, from, to).Scan(&cogsResult).Error
 	if err != nil {
 		return ComparePeriod{}, err
 	}
 
 	return ComparePeriod{
-		Revenue:      result.Revenue,
-		COGS:         result.COGS,
-		Profit:       result.Revenue - result.COGS,
-		InvoiceCount: result.InvoiceCount,
+		Revenue:      revenueResult.Revenue,
+		COGS:         cogsResult.COGS,
+		Profit:       revenueResult.Revenue - cogsResult.COGS,
+		InvoiceCount: revenueResult.InvoiceCount,
 	}, nil
 }
 
@@ -367,13 +382,13 @@ func GetCompareReport(c *gin.Context) {
 
 	err = config.DB.Raw(`
 		SELECT
-			EXTRACT(WEEK FROM created_at)::int AS week,
-			COALESCE(SUM(final_total), 0)      AS revenue
+			(EXTRACT(DAY FROM created_at)::int - 1) / 7 + 1 AS week,
+			COALESCE(SUM(final_total), 0)                    AS revenue
 		FROM invoices
 		WHERE status = 'completed'
 		  AND created_at >= ?
 		  AND created_at <= ?
-		GROUP BY EXTRACT(WEEK FROM created_at)
+		GROUP BY (EXTRACT(DAY FROM created_at)::int - 1) / 7 + 1
 		ORDER BY week
 	`, currentFrom, currentTo).Scan(&currentWeekly).Error
 	if err != nil {
@@ -383,13 +398,13 @@ func GetCompareReport(c *gin.Context) {
 
 	err = config.DB.Raw(`
 		SELECT
-			EXTRACT(WEEK FROM created_at)::int AS week,
-			COALESCE(SUM(final_total), 0)      AS revenue
+			(EXTRACT(DAY FROM created_at)::int - 1) / 7 + 1 AS week,
+			COALESCE(SUM(final_total), 0)                    AS revenue
 		FROM invoices
 		WHERE status = 'completed'
 		  AND created_at >= ?
 		  AND created_at <= ?
-		GROUP BY EXTRACT(WEEK FROM created_at)
+		GROUP BY (EXTRACT(DAY FROM created_at)::int - 1) / 7 + 1
 		ORDER BY week
 	`, previousFrom, previousTo).Scan(&previousWeekly).Error
 	if err != nil {
@@ -474,6 +489,7 @@ func ExportRevenueExcel(c *gin.Context) {
 	}
 
 	f := excelize.NewFile()
+	defer f.Close()
 	sheet := "Doanh thu"
 	f.SetSheetName("Sheet1", sheet)
 
@@ -491,12 +507,13 @@ func ExportRevenueExcel(c *gin.Context) {
 	}
 
 	filename := fmt.Sprintf("doanh-thu-%s-%s.xlsx", from.Format("2006-01-02"), to.Format("2006-01-02"))
-	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-
-	if err := f.Write(c.Writer); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write Excel file"})
+	buf := new(bytes.Buffer)
+	if err := f.Write(buf); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi tạo file Excel"})
+		return
 	}
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buf.Bytes())
 }
 
 // ExportTopProductsExcel — GET /api/reports/top-products/export?from=&to=&sort=desc
@@ -543,6 +560,7 @@ func ExportTopProductsExcel(c *gin.Context) {
 	}
 
 	f := excelize.NewFile()
+	defer f.Close()
 	sheet := "Top san pham"
 	f.SetSheetName("Sheet1", sheet)
 
@@ -564,12 +582,13 @@ func ExportTopProductsExcel(c *gin.Context) {
 	}
 
 	filename := fmt.Sprintf("top-products-%s-%s-%s.xlsx", sortLabel, from.Format("2006-01-02"), to.Format("2006-01-02"))
-	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-
-	if err := f.Write(c.Writer); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write Excel file"})
+	buf := new(bytes.Buffer)
+	if err := f.Write(buf); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi tạo file Excel"})
+		return
 	}
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buf.Bytes())
 }
 
 // ExportCompareExcel — GET /api/reports/compare/export
@@ -596,6 +615,7 @@ func ExportCompareExcel(c *gin.Context) {
 	}
 
 	f := excelize.NewFile()
+	defer f.Close()
 	sheet := "So sanh"
 	f.SetSheetName("Sheet1", sheet)
 
@@ -624,10 +644,11 @@ func ExportCompareExcel(c *gin.Context) {
 	f.SetCellValue(sheet, "D4", current.InvoiceCount-previous.InvoiceCount)
 
 	filename := fmt.Sprintf("so-sanh-%s.xlsx", now.Format("2006-01"))
-	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-
-	if err := f.Write(c.Writer); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write Excel file"})
+	buf := new(bytes.Buffer)
+	if err := f.Write(buf); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi tạo file Excel"})
+		return
 	}
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buf.Bytes())
 }
