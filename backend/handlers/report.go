@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"taphoa-management/backend/config"
@@ -204,4 +205,234 @@ func GetProfitReport(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"daily": daily})
+}
+
+// --- Top Products ---
+
+type TopProductItem struct {
+	ProductID   uint   `json:"product_id"`
+	ProductName string `json:"product_name"`
+	TotalQty    int    `json:"total_qty"`
+	Revenue     int    `json:"revenue"`
+	Profit      int    `json:"profit"`
+}
+
+// GetTopProducts — GET /api/reports/top-products?from=&to=&limit=10&sort=desc
+func GetTopProducts(c *gin.Context) {
+	from, to, err := parseDateRange(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format. Use YYYY-MM-DD"})
+		return
+	}
+
+	// Parse limit (default 10, max 50)
+	limit := 10
+	if limitStr := c.Query("limit"); limitStr != "" {
+		parsed, err := strconv.Atoi(limitStr)
+		if err != nil || parsed < 1 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit"})
+			return
+		}
+		if parsed > 50 {
+			parsed = 50
+		}
+		limit = parsed
+	}
+
+	// Parse sort — only allow "asc" or "desc", never pass user input directly into SQL
+	sortOrder := "DESC"
+	if s := c.DefaultQuery("sort", "desc"); s == "asc" {
+		sortOrder = "ASC"
+	}
+
+	var rows []TopProductItem
+
+	query := `
+		SELECT
+			p.id                                           AS product_id,
+			p.name                                         AS product_name,
+			COALESCE(SUM(ii.quantity), 0)                  AS total_qty,
+			COALESCE(SUM(ii.sell_price * ii.quantity), 0)  AS revenue,
+			COALESCE(SUM((ii.sell_price - ii.cost_price) * ii.quantity), 0) AS profit
+		FROM invoice_items ii
+		JOIN invoices i   ON i.id   = ii.invoice_id
+		JOIN products p   ON p.id   = ii.product_id
+		WHERE i.status = 'completed'
+		  AND i.created_at >= ?
+		  AND i.created_at <= ?
+		GROUP BY p.id, p.name
+		ORDER BY total_qty ` + sortOrder + `
+		LIMIT ?
+	`
+
+	err = config.DB.Raw(query, from, to, limit).Scan(&rows).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query top products"})
+		return
+	}
+
+	if rows == nil {
+		rows = []TopProductItem{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"items": rows})
+}
+
+// --- Compare Report ---
+
+type ComparePeriod struct {
+	Revenue      int `json:"revenue"`
+	COGS         int `json:"cogs"`
+	Profit       int `json:"profit"`
+	InvoiceCount int `json:"invoice_count"`
+}
+
+type CompareWeeklyItem struct {
+	Week            int `json:"week"`
+	CurrentRevenue  int `json:"current_revenue"`
+	PreviousRevenue int `json:"previous_revenue"`
+}
+
+type CompareReport struct {
+	Current  ComparePeriod       `json:"current"`
+	Previous ComparePeriod       `json:"previous"`
+	Weekly   []CompareWeeklyItem `json:"weekly"`
+}
+
+// getPeriodSummary returns revenue/cogs/profit/invoice_count for a time range.
+func getPeriodSummary(from, to time.Time) (ComparePeriod, error) {
+	var result struct {
+		Revenue      int
+		COGS         int
+		InvoiceCount int
+	}
+
+	err := config.DB.Raw(`
+		SELECT
+			COALESCE(SUM(i.final_total), 0)                AS revenue,
+			COALESCE(SUM(ii.cost_price * ii.quantity), 0)  AS cogs,
+			COUNT(DISTINCT i.id)                           AS invoice_count
+		FROM invoices i
+		JOIN invoice_items ii ON ii.invoice_id = i.id
+		WHERE i.status = 'completed'
+		  AND i.created_at >= ?
+		  AND i.created_at <= ?
+	`, from, to).Scan(&result).Error
+	if err != nil {
+		return ComparePeriod{}, err
+	}
+
+	return ComparePeriod{
+		Revenue:      result.Revenue,
+		COGS:         result.COGS,
+		Profit:       result.Revenue - result.COGS,
+		InvoiceCount: result.InvoiceCount,
+	}, nil
+}
+
+// GetCompareReport — GET /api/reports/compare
+// Compares current month (1st → today) vs previous month (1st → end).
+func GetCompareReport(c *gin.Context) {
+	now := time.Now()
+
+	// Current period: 1st of this month → end of today
+	currentFrom := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	currentTo := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
+
+	// Previous period: 1st of last month → last day of last month at 23:59:59
+	firstOfThisMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	previousFrom := firstOfThisMonth.AddDate(0, -1, 0)
+	previousTo := firstOfThisMonth.Add(-time.Second) // one second before 1st of this month = 23:59:59 of last day last month
+
+	current, err := getPeriodSummary(currentFrom, currentTo)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query current period"})
+		return
+	}
+
+	previous, err := getPeriodSummary(previousFrom, previousTo)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query previous period"})
+		return
+	}
+
+	// Weekly breakdown for both periods
+	type weeklyRow struct {
+		Week    int
+		Revenue int
+	}
+	var currentWeekly, previousWeekly []weeklyRow
+
+	err = config.DB.Raw(`
+		SELECT
+			EXTRACT(WEEK FROM created_at)::int AS week,
+			COALESCE(SUM(final_total), 0)      AS revenue
+		FROM invoices
+		WHERE status = 'completed'
+		  AND created_at >= ?
+		  AND created_at <= ?
+		GROUP BY EXTRACT(WEEK FROM created_at)
+		ORDER BY week
+	`, currentFrom, currentTo).Scan(&currentWeekly).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query current weekly data"})
+		return
+	}
+
+	err = config.DB.Raw(`
+		SELECT
+			EXTRACT(WEEK FROM created_at)::int AS week,
+			COALESCE(SUM(final_total), 0)      AS revenue
+		FROM invoices
+		WHERE status = 'completed'
+		  AND created_at >= ?
+		  AND created_at <= ?
+		GROUP BY EXTRACT(WEEK FROM created_at)
+		ORDER BY week
+	`, previousFrom, previousTo).Scan(&previousWeekly).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query previous weekly data"})
+		return
+	}
+
+	// Merge into a unified weekly list keyed by week number
+	weekMap := make(map[int]*CompareWeeklyItem)
+
+	for _, row := range currentWeekly {
+		item := weekMap[row.Week]
+		if item == nil {
+			item = &CompareWeeklyItem{Week: row.Week}
+			weekMap[row.Week] = item
+		}
+		item.CurrentRevenue = row.Revenue
+	}
+
+	for _, row := range previousWeekly {
+		item := weekMap[row.Week]
+		if item == nil {
+			item = &CompareWeeklyItem{Week: row.Week}
+			weekMap[row.Week] = item
+		}
+		item.PreviousRevenue = row.Revenue
+	}
+
+	weekly := make([]CompareWeeklyItem, 0, len(weekMap))
+	for _, item := range weekMap {
+		weekly = append(weekly, *item)
+	}
+
+	// Sort by week number for stable output
+	for i := 0; i < len(weekly)-1; i++ {
+		for j := i + 1; j < len(weekly); j++ {
+			if weekly[i].Week > weekly[j].Week {
+				weekly[i], weekly[j] = weekly[j], weekly[i]
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, CompareReport{
+		Current:  current,
+		Previous: previous,
+		Weekly:   weekly,
+	})
 }
