@@ -1,0 +1,167 @@
+<h2>Tab "Doanh thu" — Layout v2</h2>
+<p class="subtitle">Cards trên, biểu đồ doanh thu (có số + lưới) ở giữa, lợi nhuận ở dưới</p>
+
+<div class="mockup">
+  <div class="mockup-header">ReportsPage — Tab Doanh thu</div>
+  <div class="mockup-body" style="padding: 20px; background: #fff;">
+
+    <!-- Date picker row -->
+    <div style="display:flex; gap:8px; margin-bottom:20px; align-items:center;">
+      <div style="background:#e0f2fe; padding:6px 16px; border-radius:6px; font-size:13px; font-weight:600; color:#0d9488; border:1.5px solid #0d9488;">Hôm nay</div>
+      <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">Tuần này</div>
+      <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">Tháng này</div>
+      <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">📅 Tùy chọn</div>
+    </div>
+
+    <!-- Stats cards -->
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px;">
+      <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+        <div style="font-size:12px; color:#64748b;">Doanh thu</div>
+        <div style="font-size:22px; font-weight:700; color:#0d9488;">3,250,000đ</div>
+      </div>
+      <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+        <div style="font-size:12px; color:#64748b;">Giá vốn</div>
+        <div style="font-size:22px; font-weight:700; color:#64748b;">2,100,000đ</div>
+      </div>
+      <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+        <div style="font-size:12px; color:#64748b;">Lợi nhuận</div>
+        <div style="font-size:22px; font-weight:700; color:#22c55e;">1,150,000đ</div>
+      </div>
+      <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+        <div style="font-size:12px; color:#64748b;">Số hóa đơn</div>
+        <div style="font-size:22px; font-weight:700; color:#0d9488;">24</div>
+      </div>
+    </div>
+
+    <!-- Revenue chart with grid + labels -->
+    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:20px; margin-bottom:16px;">
+      <div style="font-size:14px; font-weight:600; margin-bottom:16px; color:#334155;">Doanh thu theo ngày</div>
+      <div style="position:relative; height:220px; display:flex; flex-direction:column;">
+        <!-- Y-axis labels + grid lines -->
+        <div style="position:absolute; top:0; left:0; right:0; bottom:30px;">
+          <!-- Grid lines -->
+          <div style="position:absolute; top:0%; left:50px; right:0; border-top:1px solid #f1f5f9; height:0;">
+            <span style="position:absolute; left:-50px; top:-8px; font-size:11px; color:#94a3b8;">3.0M</span>
+          </div>
+          <div style="position:absolute; top:25%; left:50px; right:0; border-top:1px solid #f1f5f9; height:0;">
+            <span style="position:absolute; left:-50px; top:-8px; font-size:11px; color:#94a3b8;">2.2M</span>
+          </div>
+          <div style="position:absolute; top:50%; left:50px; right:0; border-top:1px solid #f1f5f9; height:0;">
+            <span style="position:absolute; left:-50px; top:-8px; font-size:11px; color:#94a3b8;">1.5M</span>
+          </div>
+          <div style="position:absolute; top:75%; left:50px; right:0; border-top:1px solid #f1f5f9; height:0;">
+            <span style="position:absolute; left:-50px; top:-8px; font-size:11px; color:#94a3b8;">750K</span>
+          </div>
+          <div style="position:absolute; top:100%; left:50px; right:0; border-top:1px solid #e2e8f0; height:0;">
+            <span style="position:absolute; left:-50px; top:-8px; font-size:11px; color:#94a3b8;">0</span>
+          </div>
+        </div>
+
+        <!-- Bars with value labels -->
+        <div style="position:absolute; bottom:30px; left:50px; right:10px; top:0; display:flex; align-items:flex-end; gap:0; justify-content:space-around;">
+          <!-- Mon -->
+          <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
+            <div style="font-size:11px; font-weight:600; color:#0d9488; margin-bottom:4px;">1.8M</div>
+            <div style="width:36px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:4px 4px 0 0; height:60%;"></div>
+            <div style="font-size:11px; color:#64748b; margin-top:6px;">T2</div>
+          </div>
+          <!-- Tue -->
+          <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
+            <div style="font-size:11px; font-weight:600; color:#0d9488; margin-bottom:4px;">2.4M</div>
+            <div style="width:36px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:4px 4px 0 0; height:80%;"></div>
+            <div style="font-size:11px; color:#64748b; margin-top:6px;">T3</div>
+          </div>
+          <!-- Wed -->
+          <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
+            <div style="font-size:11px; font-weight:600; color:#0d9488; margin-bottom:4px;">1.3M</div>
+            <div style="width:36px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:4px 4px 0 0; height:43%;"></div>
+            <div style="font-size:11px; color:#64748b; margin-top:6px;">T4</div>
+          </div>
+          <!-- Thu -->
+          <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
+            <div style="font-size:11px; font-weight:600; color:#0d9488; margin-bottom:4px;">2.8M</div>
+            <div style="width:36px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:4px 4px 0 0; height:93%;"></div>
+            <div style="font-size:11px; color:#64748b; margin-top:6px;">T5</div>
+          </div>
+          <!-- Fri -->
+          <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
+            <div style="font-size:11px; font-weight:600; color:#0d9488; margin-bottom:4px;">2.1M</div>
+            <div style="width:36px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:4px 4px 0 0; height:70%;"></div>
+            <div style="font-size:11px; color:#64748b; margin-top:6px;">T6</div>
+          </div>
+          <!-- Sat -->
+          <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
+            <div style="font-size:11px; font-weight:600; color:#0d9488; margin-bottom:4px;">1.6M</div>
+            <div style="width:36px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:4px 4px 0 0; height:53%;"></div>
+            <div style="font-size:11px; color:#64748b; margin-top:6px;">T7</div>
+          </div>
+          <!-- Sun -->
+          <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
+            <div style="font-size:11px; font-weight:600; color:#0d9488; margin-bottom:4px;">3.0M</div>
+            <div style="width:36px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:4px 4px 0 0; height:100%;"></div>
+            <div style="font-size:11px; color:#64748b; margin-top:6px;">CN</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profit chart below -->
+    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:20px;">
+      <div style="font-size:14px; font-weight:600; margin-bottom:16px; color:#334155;">Lợi nhuận theo ngày</div>
+      <div style="position:relative; height:160px;">
+        <!-- Grid lines -->
+        <div style="position:absolute; top:0; left:50px; right:0; bottom:30px;">
+          <div style="position:absolute; top:0%; left:0; right:0; border-top:1px solid #f1f5f9; height:0;">
+            <span style="position:absolute; left:-50px; top:-8px; font-size:11px; color:#94a3b8;">1.2M</span>
+          </div>
+          <div style="position:absolute; top:33%; left:0; right:0; border-top:1px solid #f1f5f9; height:0;">
+            <span style="position:absolute; left:-50px; top:-8px; font-size:11px; color:#94a3b8;">800K</span>
+          </div>
+          <div style="position:absolute; top:66%; left:0; right:0; border-top:1px solid #f1f5f9; height:0;">
+            <span style="position:absolute; left:-50px; top:-8px; font-size:11px; color:#94a3b8;">400K</span>
+          </div>
+          <div style="position:absolute; top:100%; left:0; right:0; border-top:1px solid #e2e8f0; height:0;">
+            <span style="position:absolute; left:-50px; top:-8px; font-size:11px; color:#94a3b8;">0</span>
+          </div>
+        </div>
+        <!-- Line chart -->
+        <div style="position:absolute; top:0; left:50px; right:10px; bottom:30px;">
+          <svg width="100%" height="100%" viewBox="0 0 600 100" preserveAspectRatio="none" style="overflow:visible;">
+            <!-- Area fill -->
+            <polygon points="43,55 129,40 215,50 300,20 386,30 472,45 558,25 558,100 43,100" fill="rgba(34,197,94,0.08)" stroke="none"/>
+            <!-- Line -->
+            <polyline points="43,55 129,40 215,50 300,20 386,30 472,45 558,25" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- Dots with values -->
+            <circle cx="43" cy="55" r="4" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+            <text x="43" y="48" text-anchor="middle" font-size="9" fill="#22c55e" font-weight="600">650K</text>
+            <circle cx="129" cy="40" r="4" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+            <text x="129" y="33" text-anchor="middle" font-size="9" fill="#22c55e" font-weight="600">880K</text>
+            <circle cx="215" cy="50" r="4" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+            <text x="215" y="43" text-anchor="middle" font-size="9" fill="#22c55e" font-weight="600">720K</text>
+            <circle cx="300" cy="20" r="4" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+            <text x="300" y="13" text-anchor="middle" font-size="9" fill="#22c55e" font-weight="600">1.1M</text>
+            <circle cx="386" cy="30" r="4" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+            <text x="386" y="23" text-anchor="middle" font-size="9" fill="#22c55e" font-weight="600">950K</text>
+            <circle cx="472" cy="45" r="4" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+            <text x="472" y="38" text-anchor="middle" font-size="9" fill="#22c55e" font-weight="600">780K</text>
+            <circle cx="558" cy="25" r="4" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+            <text x="558" y="18" text-anchor="middle" font-size="9" fill="#22c55e" font-weight="600">1.2M</text>
+          </svg>
+        </div>
+        <!-- X-axis labels -->
+        <div style="position:absolute; bottom:0; left:50px; right:10px; display:flex; justify-content:space-around;">
+          <span style="font-size:11px; color:#64748b;">T2</span>
+          <span style="font-size:11px; color:#64748b;">T3</span>
+          <span style="font-size:11px; color:#64748b;">T4</span>
+          <span style="font-size:11px; color:#64748b;">T5</span>
+          <span style="font-size:11px; color:#64748b;">T6</span>
+          <span style="font-size:11px; color:#64748b;">T7</span>
+          <span style="font-size:11px; color:#64748b;">CN</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<p style="margin-top:16px; color:#64748b; font-size:14px;">Layout OK chưa? Nói mình biết nếu muốn chỉnh gì.</p>

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -439,13 +440,9 @@ func GetCompareReport(c *gin.Context) {
 	}
 
 	// Sort by week number for stable output
-	for i := 0; i < len(weekly)-1; i++ {
-		for j := i + 1; j < len(weekly); j++ {
-			if weekly[i].Week > weekly[j].Week {
-				weekly[i], weekly[j] = weekly[j], weekly[i]
-			}
-		}
-	}
+	sort.Slice(weekly, func(i, j int) bool {
+		return weekly[i].Week < weekly[j].Week
+	})
 
 	c.JSON(http.StatusOK, CompareReport{
 		Current:  current,

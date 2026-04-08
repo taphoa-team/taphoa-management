@@ -1,0 +1,276 @@
+<h2>ReportsPage — Tổng hợp 3 tab</h2>
+<p class="subtitle">Review toàn bộ layout đã chốt. Nói mình biết nếu cần chỉnh gì.</p>
+
+<div class="mockup">
+  <div class="mockup-header">ReportsPage — Full Layout</div>
+  <div class="mockup-body" style="padding:0; background:#fff;">
+
+    <!-- Tab bar -->
+    <div style="display:flex; border-bottom:2px solid #f1f5f9; padding:0 20px;">
+      <div id="tab-revenue" style="padding:12px 20px; font-size:14px; font-weight:600; color:#0d9488; border-bottom:2px solid #0d9488; margin-bottom:-2px; cursor:pointer;" onclick="showTab('revenue')">Doanh thu</div>
+      <div id="tab-compare" style="padding:12px 20px; font-size:14px; color:#64748b; cursor:pointer;" onclick="showTab('compare')">So sánh</div>
+      <div id="tab-products" style="padding:12px 20px; font-size:14px; color:#64748b; cursor:pointer;" onclick="showTab('products')">Top sản phẩm</div>
+    </div>
+
+    <!-- TAB 1: Doanh thu -->
+    <div id="panel-revenue" style="padding:20px;">
+      <!-- Date picker -->
+      <div style="display:flex; gap:8px; margin-bottom:20px;">
+        <div style="background:#e0f2fe; padding:6px 16px; border-radius:6px; font-size:13px; font-weight:600; color:#0d9488; border:1.5px solid #0d9488;">Hôm nay</div>
+        <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">Tuần này</div>
+        <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">Tháng này</div>
+        <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">📅 Tùy chọn</div>
+      </div>
+
+      <!-- Stats cards -->
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px;">
+        <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+          <div style="font-size:12px; color:#64748b;">Doanh thu</div>
+          <div style="font-size:22px; font-weight:700; color:#0d9488;">3,250,000đ</div>
+        </div>
+        <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+          <div style="font-size:12px; color:#64748b;">Giá vốn</div>
+          <div style="font-size:22px; font-weight:700; color:#64748b;">2,100,000đ</div>
+        </div>
+        <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+          <div style="font-size:12px; color:#64748b;">Lợi nhuận</div>
+          <div style="font-size:22px; font-weight:700; color:#22c55e;">1,150,000đ</div>
+        </div>
+        <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+          <div style="font-size:12px; color:#64748b;">Số hóa đơn</div>
+          <div style="font-size:22px; font-weight:700; color:#0d9488;">24</div>
+        </div>
+      </div>
+
+      <!-- Revenue bar chart -->
+      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:20px; margin-bottom:16px;">
+        <div style="font-size:14px; font-weight:600; margin-bottom:16px; color:#334155;">Doanh thu theo ngày</div>
+        <svg width="100%" height="200" viewBox="0 0 700 200">
+          <line x1="50" y1="10" x2="680" y2="10" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="50" x2="680" y2="50" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="90" x2="680" y2="90" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="130" x2="680" y2="130" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="170" x2="680" y2="170" stroke="#e2e8f0" stroke-width="1"/>
+          <text x="45" y="14" text-anchor="end" font-size="10" fill="#94a3b8">3M</text>
+          <text x="45" y="94" text-anchor="end" font-size="10" fill="#94a3b8">1.5M</text>
+          <text x="45" y="174" text-anchor="end" font-size="10" fill="#94a3b8">0</text>
+          <defs><linearGradient id="bg" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#0d9488"/><stop offset="100%" stop-color="#14b8a6"/></linearGradient></defs>
+          <rect x="72" y="68" width="40" height="102" rx="4" fill="url(#bg)"/>
+          <text x="92" y="60" text-anchor="middle" font-size="10" fill="#0d9488" font-weight="600">1.8M</text>
+          <text x="92" y="186" text-anchor="middle" font-size="11" fill="#64748b">T2</text>
+          <rect x="162" y="36" width="40" height="134" rx="4" fill="url(#bg)"/>
+          <text x="182" y="28" text-anchor="middle" font-size="10" fill="#0d9488" font-weight="600">2.4M</text>
+          <text x="182" y="186" text-anchor="middle" font-size="11" fill="#64748b">T3</text>
+          <rect x="252" y="96" width="40" height="74" rx="4" fill="url(#bg)"/>
+          <text x="272" y="88" text-anchor="middle" font-size="10" fill="#0d9488" font-weight="600">1.3M</text>
+          <text x="272" y="186" text-anchor="middle" font-size="11" fill="#64748b">T4</text>
+          <rect x="342" y="18" width="40" height="152" rx="4" fill="url(#bg)"/>
+          <text x="362" y="10" text-anchor="middle" font-size="10" fill="#0d9488" font-weight="600">2.8M</text>
+          <text x="362" y="186" text-anchor="middle" font-size="11" fill="#64748b">T5</text>
+          <rect x="432" y="51" width="40" height="119" rx="4" fill="url(#bg)"/>
+          <text x="452" y="43" text-anchor="middle" font-size="10" fill="#0d9488" font-weight="600">2.1M</text>
+          <text x="452" y="186" text-anchor="middle" font-size="11" fill="#64748b">T6</text>
+          <rect x="522" y="79" width="40" height="91" rx="4" fill="url(#bg)"/>
+          <text x="542" y="71" text-anchor="middle" font-size="10" fill="#0d9488" font-weight="600">1.6M</text>
+          <text x="542" y="186" text-anchor="middle" font-size="11" fill="#64748b">T7</text>
+          <rect x="612" y="10" width="40" height="160" rx="4" fill="url(#bg)"/>
+          <text x="632" y="4" text-anchor="middle" font-size="10" fill="#0d9488" font-weight="600">3.0M</text>
+          <text x="632" y="186" text-anchor="middle" font-size="11" fill="#64748b">CN</text>
+        </svg>
+      </div>
+
+      <!-- Profit line chart -->
+      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:20px;">
+        <div style="font-size:14px; font-weight:600; margin-bottom:16px; color:#334155;">Lợi nhuận theo ngày</div>
+        <svg width="100%" height="150" viewBox="0 0 700 150">
+          <line x1="50" y1="10" x2="680" y2="10" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="45" x2="680" y2="45" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="80" x2="680" y2="80" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="115" x2="680" y2="115" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="130" x2="680" y2="130" stroke="#e2e8f0" stroke-width="1"/>
+          <text x="45" y="14" text-anchor="end" font-size="10" fill="#94a3b8">1.2M</text>
+          <text x="45" y="84" text-anchor="end" font-size="10" fill="#94a3b8">600K</text>
+          <text x="45" y="134" text-anchor="end" font-size="10" fill="#94a3b8">0</text>
+          <polygon points="92,75 182,52 272,65 362,20 452,38 542,60 632,28 632,130 92,130" fill="rgba(34,197,94,0.08)"/>
+          <polyline points="92,75 182,52 272,65 362,20 452,38 542,60 632,28" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="92" cy="75" r="4" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+          <text x="92" y="66" text-anchor="middle" font-size="10" fill="#22c55e" font-weight="600">650K</text>
+          <circle cx="182" cy="52" r="4" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+          <text x="182" y="43" text-anchor="middle" font-size="10" fill="#22c55e" font-weight="600">880K</text>
+          <circle cx="272" cy="65" r="4" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+          <text x="272" y="56" text-anchor="middle" font-size="10" fill="#22c55e" font-weight="600">720K</text>
+          <circle cx="362" cy="20" r="4" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+          <text x="362" y="11" text-anchor="middle" font-size="10" fill="#22c55e" font-weight="600">1.1M</text>
+          <circle cx="452" cy="38" r="4" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+          <text x="452" y="29" text-anchor="middle" font-size="10" fill="#22c55e" font-weight="600">950K</text>
+          <circle cx="542" cy="60" r="4" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+          <text x="542" y="51" text-anchor="middle" font-size="10" fill="#22c55e" font-weight="600">780K</text>
+          <circle cx="632" cy="28" r="4" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+          <text x="632" y="19" text-anchor="middle" font-size="10" fill="#22c55e" font-weight="600">1.2M</text>
+          <text x="92" y="145" text-anchor="middle" font-size="11" fill="#64748b">T2</text>
+          <text x="182" y="145" text-anchor="middle" font-size="11" fill="#64748b">T3</text>
+          <text x="272" y="145" text-anchor="middle" font-size="11" fill="#64748b">T4</text>
+          <text x="362" y="145" text-anchor="middle" font-size="11" fill="#64748b">T5</text>
+          <text x="452" y="145" text-anchor="middle" font-size="11" fill="#64748b">T6</text>
+          <text x="542" y="145" text-anchor="middle" font-size="11" fill="#64748b">T7</text>
+          <text x="632" y="145" text-anchor="middle" font-size="11" fill="#64748b">CN</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- TAB 2: So sánh -->
+    <div id="panel-compare" style="padding:20px; display:none;">
+      <!-- Summary cards -->
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px;">
+        <div style="background:#f0fdfa; padding:14px; border-radius:10px; border:1px solid #ccfbf1;">
+          <div style="font-size:12px; color:#64748b;">Doanh thu</div>
+          <div style="display:flex; justify-content:space-between; align-items:baseline; margin-top:6px;">
+            <div>
+              <span style="font-size:12px; color:#94a3b8;">45.2M</span>
+              <span style="font-size:12px; color:#94a3b8; margin:0 3px;">→</span>
+              <span style="font-size:18px; font-weight:700; color:#0d9488;">52.8M</span>
+            </div>
+            <span style="font-size:13px; font-weight:600; color:#22c55e;">+16.8%↑</span>
+          </div>
+        </div>
+        <div style="background:#f0fdfa; padding:14px; border-radius:10px; border:1px solid #ccfbf1;">
+          <div style="font-size:12px; color:#64748b;">Lợi nhuận</div>
+          <div style="display:flex; justify-content:space-between; align-items:baseline; margin-top:6px;">
+            <div>
+              <span style="font-size:12px; color:#94a3b8;">15.6M</span>
+              <span style="font-size:12px; color:#94a3b8; margin:0 3px;">→</span>
+              <span style="font-size:18px; font-weight:700; color:#22c55e;">18.2M</span>
+            </div>
+            <span style="font-size:13px; font-weight:600; color:#22c55e;">+16.7%↑</span>
+          </div>
+        </div>
+        <div style="background:#f0fdfa; padding:14px; border-radius:10px; border:1px solid #ccfbf1;">
+          <div style="font-size:12px; color:#64748b;">Số hóa đơn</div>
+          <div style="display:flex; justify-content:space-between; align-items:baseline; margin-top:6px;">
+            <div>
+              <span style="font-size:12px; color:#94a3b8;">312</span>
+              <span style="font-size:12px; color:#94a3b8; margin:0 3px;">→</span>
+              <span style="font-size:18px; font-weight:700; color:#0d9488;">358</span>
+            </div>
+            <span style="font-size:13px; font-weight:600; color:#22c55e;">+14.7%↑</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grouped bar chart -->
+      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="font-size:14px; font-weight:600; color:#334155;">Doanh thu theo tuần</div>
+          <div style="display:flex; gap:16px; font-size:12px;">
+            <div style="display:flex; align-items:center; gap:4px;"><div style="width:12px; height:12px; background:#cbd5e1; border-radius:2px;"></div> Tháng 3</div>
+            <div style="display:flex; align-items:center; gap:4px;"><div style="width:12px; height:12px; background:#0d9488; border-radius:2px;"></div> Tháng 4</div>
+          </div>
+        </div>
+        <svg width="100%" height="180" viewBox="0 0 700 180">
+          <line x1="50" y1="10" x2="680" y2="10" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="45" x2="680" y2="45" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="80" x2="680" y2="80" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="115" x2="680" y2="115" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="150" x2="680" y2="150" stroke="#e2e8f0" stroke-width="1"/>
+          <rect x="90" y="65" width="28" height="85" rx="3" fill="#cbd5e1"/>
+          <rect x="120" y="40" width="28" height="110" rx="3" fill="#0d9488"/>
+          <text x="119" y="168" text-anchor="middle" font-size="11" fill="#64748b">Tuần 1</text>
+          <rect x="220" y="50" width="28" height="100" rx="3" fill="#cbd5e1"/>
+          <rect x="250" y="25" width="28" height="125" rx="3" fill="#0d9488"/>
+          <text x="249" y="168" text-anchor="middle" font-size="11" fill="#64748b">Tuần 2</text>
+          <rect x="350" y="75" width="28" height="75" rx="3" fill="#cbd5e1"/>
+          <rect x="380" y="35" width="28" height="115" rx="3" fill="#0d9488"/>
+          <text x="379" y="168" text-anchor="middle" font-size="11" fill="#64748b">Tuần 3</text>
+          <rect x="480" y="55" width="28" height="95" rx="3" fill="#cbd5e1"/>
+          <rect x="510" y="15" width="28" height="135" rx="3" fill="#0d9488"/>
+          <text x="509" y="168" text-anchor="middle" font-size="11" fill="#64748b">Tuần 4</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- TAB 3: Top sản phẩm -->
+    <div id="panel-products" style="padding:20px; display:none;">
+      <!-- Toggle -->
+      <div style="display:flex; gap:8px; margin-bottom:20px;">
+        <div style="background:#e0f2fe; padding:6px 16px; border-radius:6px; font-size:13px; font-weight:600; color:#0d9488; border:1.5px solid #0d9488;">🔥 Bán chạy</div>
+        <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">📉 Bán ế</div>
+      </div>
+
+      <!-- Date range -->
+      <div style="display:flex; gap:8px; margin-bottom:16px;">
+        <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">Tuần này</div>
+        <div style="background:#e0f2fe; padding:6px 16px; border-radius:6px; font-size:13px; font-weight:600; color:#0d9488; border:1.5px solid #0d9488;">Tháng này</div>
+        <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">📅 Tùy chọn</div>
+      </div>
+
+      <!-- Table -->
+      <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <thead>
+          <tr style="background:#f0fdfa;">
+            <th style="padding:10px 12px; text-align:left; color:#334155; border-bottom:2px solid #e2e8f0; width:40px;">#</th>
+            <th style="padding:10px 12px; text-align:left; color:#334155; border-bottom:2px solid #e2e8f0;">Sản phẩm</th>
+            <th style="padding:10px 12px; text-align:right; color:#334155; border-bottom:2px solid #e2e8f0;">SL bán</th>
+            <th style="padding:10px 12px; text-align:right; color:#334155; border-bottom:2px solid #e2e8f0;">Doanh thu</th>
+            <th style="padding:10px 12px; text-align:right; color:#334155; border-bottom:2px solid #e2e8f0;">Lợi nhuận</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:10px 12px; border-bottom:1px solid #f1f5f9; font-weight:700; color:#f59e0b;">1</td>
+            <td style="padding:10px 12px; border-bottom:1px solid #f1f5f9;">Mì Hảo Hảo tôm chua cay</td>
+            <td style="padding:10px 12px; text-align:right; border-bottom:1px solid #f1f5f9; font-weight:600;">156</td>
+            <td style="padding:10px 12px; text-align:right; border-bottom:1px solid #f1f5f9;">780,000đ</td>
+            <td style="padding:10px 12px; text-align:right; border-bottom:1px solid #f1f5f9; color:#22c55e; font-weight:600;">234,000đ</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 12px; border-bottom:1px solid #f1f5f9; font-weight:700; color:#94a3b8;">2</td>
+            <td style="padding:10px 12px; border-bottom:1px solid #f1f5f9;">Coca Cola 330ml</td>
+            <td style="padding:10px 12px; text-align:right; border-bottom:1px solid #f1f5f9; font-weight:600;">132</td>
+            <td style="padding:10px 12px; text-align:right; border-bottom:1px solid #f1f5f9;">1,320,000đ</td>
+            <td style="padding:10px 12px; text-align:right; border-bottom:1px solid #f1f5f9; color:#22c55e; font-weight:600;">396,000đ</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 12px; border-bottom:1px solid #f1f5f9; font-weight:700; color:#cd7f32;">3</td>
+            <td style="padding:10px 12px; border-bottom:1px solid #f1f5f9;">Nước suối Aquafina 500ml</td>
+            <td style="padding:10px 12px; text-align:right; border-bottom:1px solid #f1f5f9; font-weight:600;">98</td>
+            <td style="padding:10px 12px; text-align:right; border-bottom:1px solid #f1f5f9;">490,000đ</td>
+            <td style="padding:10px 12px; text-align:right; border-bottom:1px solid #f1f5f9; color:#22c55e; font-weight:600;">147,000đ</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 12px; border-bottom:1px solid #f1f5f9; color:#64748b;">4</td>
+            <td style="padding:10px 12px; border-bottom:1px solid #f1f5f9;">Bánh mì sandwich Kinh Đô</td>
+            <td style="padding:10px 12px; text-align:right; border-bottom:1px solid #f1f5f9; font-weight:600;">87</td>
+            <td style="padding:10px 12px; text-align:right; border-bottom:1px solid #f1f5f9;">1,305,000đ</td>
+            <td style="padding:10px 12px; text-align:right; border-bottom:1px solid #f1f5f9; color:#22c55e; font-weight:600;">261,000đ</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 12px; color:#64748b;">5</td>
+            <td style="padding:10px 12px;">Sữa Vinamilk 180ml</td>
+            <td style="padding:10px 12px; text-align:right; font-weight:600;">76</td>
+            <td style="padding:10px 12px; text-align:right;">532,000đ</td>
+            <td style="padding:10px 12px; text-align:right; color:#22c55e; font-weight:600;">152,000đ</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function showTab(name) {
+  ['revenue','compare','products'].forEach(t => {
+    document.getElementById('panel-' + t).style.display = t === name ? 'block' : 'none';
+    const tab = document.getElementById('tab-' + t);
+    if (t === name) {
+      tab.style.color = '#0d9488';
+      tab.style.fontWeight = '600';
+      tab.style.borderBottom = '2px solid #0d9488';
+    } else {
+      tab.style.color = '#64748b';
+      tab.style.fontWeight = '400';
+      tab.style.borderBottom = 'none';
+    }
+  });
+}
+</script>

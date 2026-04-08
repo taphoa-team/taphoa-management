@@ -21,19 +21,15 @@ const { RangePicker } = DatePicker;
 type QuickRange = 'today' | 'week' | 'month' | 'custom';
 
 function downloadExcel(url: string) {
-  const token = localStorage.getItem('token');
-  fetch((process.env.REACT_APP_API_URL || '/api') + url, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
+  api.get(url, { responseType: 'blob' })
     .then(res => {
-      if (!res.ok) throw new Error('Export failed');
-      return res.blob();
-    })
-    .then(blob => {
-      const blobUrl = URL.createObjectURL(blob);
+      const disposition = res.headers['content-disposition'] || '';
+      const match = disposition.match(/filename="?(.+?)"?$/);
+      const filename = match?.[1] || 'report.xlsx';
+      const blobUrl = URL.createObjectURL(res.data);
       const link = document.createElement('a');
       link.href = blobUrl;
-      link.download = 'report.xlsx';
+      link.download = filename;
       link.click();
       URL.revokeObjectURL(blobUrl);
     })
@@ -56,7 +52,6 @@ const yAxisFormatter = (v: unknown) => {
   const n = typeof v === 'number' ? v : 0;
   return n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000)}K` : `${n}`;
 };
-const labelFormatter = (v: unknown) => yAxisFormatter(v);
 
 // ─── Tab 1: RevenueTab ────────────────────────────────────────────────────────
 
@@ -218,7 +213,7 @@ function RevenueTab() {
             <XAxis dataKey="date" />
             <YAxis tickFormatter={yAxisFormatter} />
             <Tooltip formatter={vndFormatter} />
-            <Bar dataKey="Doanh thu" fill="#0d9488" radius={[4, 4, 0, 0]} label={{ position: 'top', formatter: labelFormatter, fontSize: 11 }} />
+            <Bar dataKey="Doanh thu" fill="#0d9488" radius={[4, 4, 0, 0]} label={{ position: 'top', formatter: yAxisFormatter, fontSize: 11 }} />
           </BarChart>
         </ResponsiveContainer>
       </Card>
@@ -237,7 +232,7 @@ function RevenueTab() {
               stroke="#22c55e"
               fill="#bbf7d0"
               dot={{ r: 3 }}
-              label={{ position: 'top', formatter: labelFormatter, fontSize: 11 }}
+              label={{ position: 'top', formatter: yAxisFormatter, fontSize: 11 }}
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -507,6 +502,7 @@ export default function ReportsPage() {
       <PageHeader title="Báo cáo" />
       <Tabs
         defaultActiveKey="revenue"
+        destroyInactiveTabPane
         items={[
           {
             key: 'revenue',

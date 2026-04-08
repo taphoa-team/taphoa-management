@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Layout, Menu, Button, theme, Typography } from 'antd';
 import {
   ShoppingCartOutlined,
@@ -109,7 +109,7 @@ export default function AppLayout() {
 
   // Match /customers/:id → /customers, /invoices/:id → /invoices
   const selectedKey = location.pathname.replace(/\/\d+$/, '') || '/';
-  const menuItems = getMenuItems(user?.role);
+  const menuItems = useMemo(() => getMenuItems(user?.role), [user?.role]);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
