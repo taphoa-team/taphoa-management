@@ -277,7 +277,7 @@ func GetTopProducts(c *gin.Context) {
 		rows = []TopProductItem{}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"items": rows})
+	c.JSON(http.StatusOK, rows)
 }
 
 // --- Compare Report ---
