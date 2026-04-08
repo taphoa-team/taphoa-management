@@ -39,7 +39,7 @@ done
 
 # 2. Backend (Go)
 echo -e "\n${YELLOW}[2/3] Starting Backend...${NC}"
-(cd "$BACKEND_DIR" && go run main.go) &
+(cd "$BACKEND_DIR" && FRONTEND_URL=http://localhost:3001 go run main.go) &
 BACKEND_PID=$!
 echo -e "${GREEN}  ✓ Backend starting (port 8082, PID: $BACKEND_PID)${NC}"
 
