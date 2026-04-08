@@ -20,6 +20,26 @@ import type {
 const { RangePicker } = DatePicker;
 type QuickRange = 'today' | 'week' | 'month' | 'custom';
 
+function downloadExcel(url: string) {
+  const token = localStorage.getItem('token');
+  fetch((process.env.REACT_APP_API_URL || '/api') + url, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+    .then(res => {
+      if (!res.ok) throw new Error('Export failed');
+      return res.blob();
+    })
+    .then(blob => {
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = 'report.xlsx';
+      link.click();
+      URL.revokeObjectURL(blobUrl);
+    })
+    .catch(() => message.error('Lỗi xuất Excel'));
+}
+
 function getDateRange(quick: QuickRange): [Dayjs, Dayjs] {
   const today = dayjs();
   switch (quick) {
@@ -103,25 +123,33 @@ function RevenueTab() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Date picker row */}
       <Card size="small">
-        <Space wrap>
-          <Segmented
-            value={quick}
-            onChange={handleQuickChange}
-            options={[
-              { label: 'Hôm nay', value: 'today' },
-              { label: 'Tuần này', value: 'week' },
-              { label: 'Tháng này', value: 'month' },
-              { label: 'Tùy chọn', value: 'custom' },
-            ]}
-          />
-          {quick === 'custom' && (
-            <RangePicker
-              value={dateRange}
-              onChange={handleRangeChange as any}
-              format="DD/MM/YYYY"
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Space wrap>
+            <Segmented
+              value={quick}
+              onChange={handleQuickChange}
+              options={[
+                { label: 'Hôm nay', value: 'today' },
+                { label: 'Tuần này', value: 'week' },
+                { label: 'Tháng này', value: 'month' },
+                { label: 'Tùy chọn', value: 'custom' },
+              ]}
             />
-          )}
-        </Space>
+            {quick === 'custom' && (
+              <RangePicker
+                value={dateRange}
+                onChange={handleRangeChange as any}
+                format="DD/MM/YYYY"
+              />
+            )}
+          </Space>
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={() => downloadExcel(`/reports/revenue/export?from=${dateRange[0].format('YYYY-MM-DD')}&to=${dateRange[1].format('YYYY-MM-DD')}`)}
+          >
+            Xuất Excel
+          </Button>
+        </div>
       </Card>
 
       {/* 5 stat cards */}
@@ -296,6 +324,13 @@ function CompareTab() {
         </Col>
       </Row>
 
+      {/* Export button */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <Button icon={<DownloadOutlined />} onClick={() => downloadExcel('/reports/compare/export')}>
+          Xuất Excel
+        </Button>
+      </div>
+
       {/* Grouped BarChart */}
       <Card title="So sánh doanh thu theo tuần" loading={loading}>
         <ResponsiveContainer width="100%" height={300}>
@@ -413,32 +448,40 @@ function TopProductsTab() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Controls */}
       <Card size="small">
-        <Space wrap>
-          <Segmented
-            value={sortMode}
-            onChange={(v) => setSortMode(v as 'desc' | 'asc')}
-            options={[
-              { label: 'Bán chạy', value: 'desc' },
-              { label: 'Bán ế', value: 'asc' },
-            ]}
-          />
-          <Segmented
-            value={quick}
-            onChange={handleQuickChange}
-            options={[
-              { label: 'Tuần này', value: 'week' },
-              { label: 'Tháng này', value: 'month' },
-              { label: 'Tùy chọn', value: 'custom' },
-            ]}
-          />
-          {quick === 'custom' && (
-            <RangePicker
-              value={dateRange}
-              onChange={handleRangeChange as any}
-              format="DD/MM/YYYY"
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Space wrap>
+            <Segmented
+              value={sortMode}
+              onChange={(v) => setSortMode(v as 'desc' | 'asc')}
+              options={[
+                { label: 'Bán chạy', value: 'desc' },
+                { label: 'Bán ế', value: 'asc' },
+              ]}
             />
-          )}
-        </Space>
+            <Segmented
+              value={quick}
+              onChange={handleQuickChange}
+              options={[
+                { label: 'Tuần này', value: 'week' },
+                { label: 'Tháng này', value: 'month' },
+                { label: 'Tùy chọn', value: 'custom' },
+              ]}
+            />
+            {quick === 'custom' && (
+              <RangePicker
+                value={dateRange}
+                onChange={handleRangeChange as any}
+                format="DD/MM/YYYY"
+              />
+            )}
+          </Space>
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={() => downloadExcel(`/reports/top-products/export?from=${dateRange[0].format('YYYY-MM-DD')}&to=${dateRange[1].format('YYYY-MM-DD')}&sort=${sortMode}`)}
+          >
+            Xuất Excel
+          </Button>
+        </div>
       </Card>
 
       {/* Table */}
