@@ -206,7 +206,7 @@ func GetProfitReport(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"daily": daily})
+	c.JSON(http.StatusOK, daily)
 }
 
 // --- Top Products ---
