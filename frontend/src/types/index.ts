@@ -219,3 +219,72 @@ export interface InventoryItem extends Product {
   stock: number;
   warning: '' | 'low' | 'out';
 }
+
+// === Reports ===
+
+export interface RevenueDataPoint {
+  date: string;
+  revenue: number;
+  invoice_count: number;
+}
+
+export interface RevenueReport {
+  total_revenue: number;
+  total_cogs: number;
+  total_profit: number;
+  invoice_count: number;
+  total_discount: number;
+  daily: RevenueDataPoint[];
+}
+
+export interface ProfitDataPoint {
+  date: string;
+  revenue: number;
+  cogs: number;
+  profit: number;
+}
+
+export interface TopProductItem {
+  product_id: number;
+  product_name: string;
+  total_qty: number;
+  revenue: number;
+  profit: number;
+}
+
+export interface ComparePeriod {
+  revenue: number;
+  cogs: number;
+  profit: number;
+  invoice_count: number;
+}
+
+export interface CompareWeeklyItem {
+  week: number;
+  current_revenue: number;
+  previous_revenue: number;
+}
+
+export interface CompareReport {
+  current: ComparePeriod;
+  previous: ComparePeriod;
+  weekly: CompareWeeklyItem[];
+}
+
+export interface PriceHistoryItem {
+  id: number;
+  product_id: number;
+  old_price: number;
+  new_price: number;
+  changed_by: number;
+  user?: User;
+  created_at: string;
+}
+
+export interface DiscountDetail {
+  invoice_id: number;
+  user_name: string;
+  discount_amount: number;
+  final_total: number;
+  created_at: string;
+}
