@@ -35,7 +35,31 @@
 
 ---
 
-## 3. Các việc cần làm tiếp (từ review)
+## 3. Tính toán giá sản phẩm hợp lý
+
+**Vấn đề:** Hiện tại hệ thống chỉ lưu giá bán cố định (sell_price), không có công cụ hỗ trợ tính giá bán hợp lý dựa trên giá nhập.
+
+**Yêu cầu cốt lõi:** Giá bán phải bù được cả giá nhập + chi phí vận hành (điện, nước, thuế, mặt bằng, v.v.), không chỉ lời trên từng SP.
+
+**Cần có:**
+- Nhập chi phí vận hành hàng tháng (điện, nước, thuế, mặt bằng, nhân công, v.v.)
+- Tính chi phí vận hành phân bổ trên mỗi SP (dựa trên số lượng bán ra tháng trước hoặc dự kiến)
+- Gợi ý giá bán = giá nhập + chi phí phân bổ + % lợi nhuận mong muốn
+- Hiển thị biên lợi nhuận thực tế (sau khi trừ cả chi phí vận hành)
+- Cảnh báo nếu giá bán không đủ bù chi phí (bán lỗ ẩn)
+- So sánh giá nhập giữa các lần nhập (giá nhập tăng/giảm)
+
+**Ví dụ:**
+- Chi phí vận hành tháng: 5.000.000đ (điện 1tr, nước 200k, thuế 500k, mặt bằng 3tr, khác 300k)
+- Tháng trước bán 2.000 SP → chi phí phân bổ mỗi SP: ~2.500đ
+- SP nhập 10.000đ → giá tối thiểu phải bán: 12.500đ (chưa tính lời)
+- Muốn lời 15% → gợi ý bán: ~14.375đ
+
+**Trạng thái:** Chưa làm
+
+---
+
+## 4. Các việc cần làm tiếp (từ review)
 
 ### Đã fix trong branch phase6-deploy:
 - [x] Path traversal vulnerability (dùng r.NoRoute thay middleware tự viết)

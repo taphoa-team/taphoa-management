@@ -135,6 +135,19 @@ func CreateInvoice(c *gin.Context) {
 		return
 	}
 
+	// Giới hạn giảm giá 20% cho staff
+	role, _ := c.Get("role")
+	if role != "admin" && total > 0 {
+		maxDiscount := total * 20 / 100
+		if req.DiscountAmount > maxDiscount {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": fmt.Sprintf("Nhân viên chỉ được giảm tối đa 20%% (%s)", formatVNDBackend(maxDiscount)),
+			})
+			return
+		}
+	}
+
 	// FIX 2.5: Validate thanh toán đủ
 	switch req.PaymentMethod {
 	case "cash":

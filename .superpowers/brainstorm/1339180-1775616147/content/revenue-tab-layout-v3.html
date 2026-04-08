@@ -1,0 +1,165 @@
+<h2>Tab "Doanh thu" — Layout v3</h2>
+<p class="subtitle">Cards trên, biểu đồ doanh thu (có số + lưới) ở giữa, lợi nhuận ở dưới</p>
+
+<div class="mockup">
+  <div class="mockup-header">ReportsPage — Tab Doanh thu</div>
+  <div class="mockup-body" style="padding: 20px; background: #fff;">
+
+    <!-- Date picker row -->
+    <div style="display:flex; gap:8px; margin-bottom:20px; align-items:center;">
+      <div style="background:#e0f2fe; padding:6px 16px; border-radius:6px; font-size:13px; font-weight:600; color:#0d9488; border:1.5px solid #0d9488;">Hôm nay</div>
+      <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">Tuần này</div>
+      <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">Tháng này</div>
+      <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">📅 Tùy chọn</div>
+    </div>
+
+    <!-- Stats cards -->
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px;">
+      <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+        <div style="font-size:12px; color:#64748b;">Doanh thu</div>
+        <div style="font-size:22px; font-weight:700; color:#0d9488;">3,250,000đ</div>
+      </div>
+      <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+        <div style="font-size:12px; color:#64748b;">Giá vốn</div>
+        <div style="font-size:22px; font-weight:700; color:#64748b;">2,100,000đ</div>
+      </div>
+      <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+        <div style="font-size:12px; color:#64748b;">Lợi nhuận</div>
+        <div style="font-size:22px; font-weight:700; color:#22c55e;">1,150,000đ</div>
+      </div>
+      <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+        <div style="font-size:12px; color:#64748b;">Số hóa đơn</div>
+        <div style="font-size:22px; font-weight:700; color:#0d9488;">24</div>
+      </div>
+    </div>
+
+    <!-- Revenue bar chart with grid -->
+    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:20px; margin-bottom:16px;">
+      <div style="font-size:14px; font-weight:600; margin-bottom:16px; color:#334155;">Doanh thu theo ngày</div>
+
+      <!-- Chart area with SVG -->
+      <svg width="100%" height="230" viewBox="0 0 700 230">
+        <!-- Grid lines -->
+        <line x1="50" y1="10" x2="680" y2="10" stroke="#f1f5f9" stroke-width="1"/>
+        <line x1="50" y1="50" x2="680" y2="50" stroke="#f1f5f9" stroke-width="1"/>
+        <line x1="50" y1="90" x2="680" y2="90" stroke="#f1f5f9" stroke-width="1"/>
+        <line x1="50" y1="130" x2="680" y2="130" stroke="#f1f5f9" stroke-width="1"/>
+        <line x1="50" y1="170" x2="680" y2="170" stroke="#f1f5f9" stroke-width="1"/>
+        <line x1="50" y1="200" x2="680" y2="200" stroke="#e2e8f0" stroke-width="1"/>
+
+        <!-- Y-axis labels -->
+        <text x="45" y="14" text-anchor="end" font-size="11" fill="#94a3b8">3.0M</text>
+        <text x="45" y="54" text-anchor="end" font-size="11" fill="#94a3b8">2.4M</text>
+        <text x="45" y="94" text-anchor="end" font-size="11" fill="#94a3b8">1.8M</text>
+        <text x="45" y="134" text-anchor="end" font-size="11" fill="#94a3b8">1.2M</text>
+        <text x="45" y="174" text-anchor="end" font-size="11" fill="#94a3b8">600K</text>
+        <text x="45" y="204" text-anchor="end" font-size="11" fill="#94a3b8">0</text>
+
+        <!-- Bars -->
+        <!-- T2: 1.8M → height = 114px (60% of 190) -->
+        <defs>
+          <linearGradient id="barGrad" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#0d9488"/>
+            <stop offset="100%" stop-color="#14b8a6"/>
+          </linearGradient>
+        </defs>
+
+        <!-- T2: 1.8M -->
+        <rect x="72" y="86" width="40" height="114" rx="4" fill="url(#barGrad)"/>
+        <text x="92" y="78" text-anchor="middle" font-size="11" fill="#0d9488" font-weight="600">1.8M</text>
+        <text x="92" y="218" text-anchor="middle" font-size="12" fill="#64748b">T2</text>
+
+        <!-- T3: 2.4M -->
+        <rect x="162" y="48" width="40" height="152" rx="4" fill="url(#barGrad)"/>
+        <text x="182" y="40" text-anchor="middle" font-size="11" fill="#0d9488" font-weight="600">2.4M</text>
+        <text x="182" y="218" text-anchor="middle" font-size="12" fill="#64748b">T3</text>
+
+        <!-- T4: 1.3M -->
+        <rect x="252" y="118" width="40" height="82" rx="4" fill="url(#barGrad)"/>
+        <text x="272" y="110" text-anchor="middle" font-size="11" fill="#0d9488" font-weight="600">1.3M</text>
+        <text x="272" y="218" text-anchor="middle" font-size="12" fill="#64748b">T4</text>
+
+        <!-- T5: 2.8M -->
+        <rect x="342" y="22" width="40" height="178" rx="4" fill="url(#barGrad)"/>
+        <text x="362" y="14" text-anchor="middle" font-size="11" fill="#0d9488" font-weight="600">2.8M</text>
+        <text x="362" y="218" text-anchor="middle" font-size="12" fill="#64748b">T5</text>
+
+        <!-- T6: 2.1M -->
+        <rect x="432" y="67" width="40" height="133" rx="4" fill="url(#barGrad)"/>
+        <text x="452" y="59" text-anchor="middle" font-size="11" fill="#0d9488" font-weight="600">2.1M</text>
+        <text x="452" y="218" text-anchor="middle" font-size="12" fill="#64748b">T6</text>
+
+        <!-- T7: 1.6M -->
+        <rect x="522" y="99" width="40" height="101" rx="4" fill="url(#barGrad)"/>
+        <text x="542" y="91" text-anchor="middle" font-size="11" fill="#0d9488" font-weight="600">1.6M</text>
+        <text x="542" y="218" text-anchor="middle" font-size="12" fill="#64748b">T7</text>
+
+        <!-- CN: 3.0M -->
+        <rect x="612" y="10" width="40" height="190" rx="4" fill="url(#barGrad)"/>
+        <text x="632" y="4" text-anchor="middle" font-size="11" fill="#0d9488" font-weight="600">3.0M</text>
+        <text x="632" y="218" text-anchor="middle" font-size="12" fill="#64748b">CN</text>
+      </svg>
+    </div>
+
+    <!-- Profit line chart below -->
+    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:20px;">
+      <div style="font-size:14px; font-weight:600; margin-bottom:16px; color:#334155;">Lợi nhuận theo ngày</div>
+
+      <svg width="100%" height="180" viewBox="0 0 700 180">
+        <!-- Grid lines -->
+        <line x1="50" y1="10" x2="680" y2="10" stroke="#f1f5f9" stroke-width="1"/>
+        <line x1="50" y1="45" x2="680" y2="45" stroke="#f1f5f9" stroke-width="1"/>
+        <line x1="50" y1="80" x2="680" y2="80" stroke="#f1f5f9" stroke-width="1"/>
+        <line x1="50" y1="115" x2="680" y2="115" stroke="#f1f5f9" stroke-width="1"/>
+        <line x1="50" y1="150" x2="680" y2="150" stroke="#e2e8f0" stroke-width="1"/>
+
+        <!-- Y-axis labels -->
+        <text x="45" y="14" text-anchor="end" font-size="11" fill="#94a3b8">1.2M</text>
+        <text x="45" y="49" text-anchor="end" font-size="11" fill="#94a3b8">900K</text>
+        <text x="45" y="84" text-anchor="end" font-size="11" fill="#94a3b8">600K</text>
+        <text x="45" y="119" text-anchor="end" font-size="11" fill="#94a3b8">300K</text>
+        <text x="45" y="154" text-anchor="end" font-size="11" fill="#94a3b8">0</text>
+
+        <!-- Area fill -->
+        <polygon points="92,88 182,60 272,78 362,25 452,45 542,72 632,35 632,150 92,150" fill="rgba(34,197,94,0.08)" stroke="none"/>
+
+        <!-- Line -->
+        <polyline points="92,88 182,60 272,78 362,25 452,45 542,72 632,35" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- Dots + value labels -->
+        <circle cx="92" cy="88" r="4.5" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+        <text x="92" y="78" text-anchor="middle" font-size="11" fill="#22c55e" font-weight="600">650K</text>
+
+        <circle cx="182" cy="60" r="4.5" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+        <text x="182" y="50" text-anchor="middle" font-size="11" fill="#22c55e" font-weight="600">880K</text>
+
+        <circle cx="272" cy="78" r="4.5" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+        <text x="272" y="68" text-anchor="middle" font-size="11" fill="#22c55e" font-weight="600">720K</text>
+
+        <circle cx="362" cy="25" r="4.5" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+        <text x="362" y="15" text-anchor="middle" font-size="11" fill="#22c55e" font-weight="600">1.1M</text>
+
+        <circle cx="452" cy="45" r="4.5" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+        <text x="452" y="35" text-anchor="middle" font-size="11" fill="#22c55e" font-weight="600">950K</text>
+
+        <circle cx="542" cy="72" r="4.5" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+        <text x="542" y="62" text-anchor="middle" font-size="11" fill="#22c55e" font-weight="600">780K</text>
+
+        <circle cx="632" cy="35" r="4.5" fill="#fff" stroke="#22c55e" stroke-width="2"/>
+        <text x="632" y="25" text-anchor="middle" font-size="11" fill="#22c55e" font-weight="600">1.2M</text>
+
+        <!-- X-axis labels -->
+        <text x="92" y="168" text-anchor="middle" font-size="12" fill="#64748b">T2</text>
+        <text x="182" y="168" text-anchor="middle" font-size="12" fill="#64748b">T3</text>
+        <text x="272" y="168" text-anchor="middle" font-size="12" fill="#64748b">T4</text>
+        <text x="362" y="168" text-anchor="middle" font-size="12" fill="#64748b">T5</text>
+        <text x="452" y="168" text-anchor="middle" font-size="12" fill="#64748b">T6</text>
+        <text x="542" y="168" text-anchor="middle" font-size="12" fill="#64748b">T7</text>
+        <text x="632" y="168" text-anchor="middle" font-size="12" fill="#64748b">CN</text>
+      </svg>
+    </div>
+
+  </div>
+</div>
+
+<p style="margin-top:16px; color:#64748b; font-size:14px;">Layout OK chưa? Nói mình biết nếu muốn chỉnh gì.</p>

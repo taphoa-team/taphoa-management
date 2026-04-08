@@ -44,6 +44,7 @@ const THEME = {
 export default function POSPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const MAX_STAFF_DISCOUNT_PCT = 20;
   const [products, setProducts] = useState<ProductWithStock[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState('');
@@ -569,16 +570,21 @@ export default function POSPage() {
                 <Space.Compact style={{ width: '100%' }}>
                   <InputNumber
                     min={0}
-                    max={discountMode === 'percent' ? 100 : subtotal}
+                    max={discountMode === 'percent' ? (user?.role === 'admin' ? 100 : MAX_STAFF_DISCOUNT_PCT) : (user?.role === 'admin' ? subtotal : Math.round(subtotal * MAX_STAFF_DISCOUNT_PCT / 100))}
                     value={discountMode === 'percent' ? discountPercent : discountAmount}
                     onChange={(v) => {
+                      const maxPct = user?.role === 'admin' ? 100 : MAX_STAFF_DISCOUNT_PCT;
                       if (discountMode === 'percent') {
-                        const pct = v || 0;
+                        const pct = Math.min(v || 0, maxPct);
                         setDiscountPercent(pct);
                         setDiscountAmount(Math.round(subtotal * pct / 100));
+                        if ((v || 0) > maxPct) message.warning(`Chỉ được giảm tối đa ${maxPct}%`);
                       } else {
-                        setDiscountAmount(v || 0);
-                        setDiscountPercent(subtotal > 0 ? Math.round((v || 0) / subtotal * 100) : 0);
+                        const maxAmount = Math.round(subtotal * maxPct / 100);
+                        const amount = Math.min(v || 0, user?.role === 'admin' ? subtotal : maxAmount);
+                        setDiscountAmount(amount);
+                        setDiscountPercent(subtotal > 0 ? Math.round(amount / subtotal * 100) : 0);
+                        if ((v || 0) > maxAmount && user?.role !== 'admin') message.warning(`Chỉ được giảm tối đa ${maxPct}% (${formatVND(maxAmount)})`);
                       }
                     }}
                     formatter={(v) => discountMode === 'percent' ? `${v}%` : `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + 'đ'}

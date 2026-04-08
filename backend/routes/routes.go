@@ -50,6 +50,9 @@ func SetupRoutes(r *gin.Engine) {
 			// Batches
 			auth.GET("/products/:id/batches", handlers.ListProductBatches)
 
+			// Price history
+			auth.GET("/products/:id/price-history", handlers.GetPriceHistory)
+
 			// === Suppliers ===
 			auth.GET("/suppliers", handlers.ListSuppliers)
 			auth.POST("/suppliers", handlers.CreateSupplier)
@@ -116,6 +119,17 @@ func SetupRoutes(r *gin.Engine) {
 				admin.PATCH("/purchase-orders/:id/cancel", handlers.CancelPurchaseOrder)
 				admin.POST("/inventory-checks/:id/confirm", handlers.ConfirmInventoryCheck)
 				admin.POST("/alerts/send-email", handlers.SendAlertEmail)
+
+				// === Reports (admin only) ===
+				admin.GET("/reports/revenue", handlers.GetRevenueReport)
+				admin.GET("/reports/profit", handlers.GetProfitReport)
+				admin.GET("/reports/top-products", handlers.GetTopProducts)
+				admin.GET("/reports/compare", handlers.GetCompareReport)
+
+				// === Report exports ===
+				admin.GET("/reports/revenue/export", handlers.ExportRevenueExcel)
+				admin.GET("/reports/top-products/export", handlers.ExportTopProductsExcel)
+				admin.GET("/reports/compare/export", handlers.ExportCompareExcel)
 			}
 		}
 	}

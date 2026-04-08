@@ -1,0 +1,122 @@
+<h2>Tab "Doanh thu" — chọn layout</h2>
+<p class="subtitle">Phần trên là số tổng quan, phần dưới là biểu đồ. Chọn cách bố trí bạn thích.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Cards trên + 1 biểu đồ dưới</h3>
+      <p>Đơn giản, dễ đọc</p>
+      <div class="mockup" style="margin-top: 12px;">
+        <div class="mockup-body" style="padding: 16px;">
+          <!-- Date picker row -->
+          <div style="display:flex; gap:8px; margin-bottom:16px; align-items:center;">
+            <div style="background:#e0f2fe; padding:6px 16px; border-radius:6px; font-size:13px; font-weight:600; color:#0d9488;">Hôm nay</div>
+            <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">Tuần này</div>
+            <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">Tháng này</div>
+            <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">📅 Tùy chọn</div>
+          </div>
+          <!-- Stats cards -->
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;">
+            <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+              <div style="font-size:12px; color:#64748b;">Doanh thu</div>
+              <div style="font-size:22px; font-weight:700; color:#0d9488;">3,250,000đ</div>
+            </div>
+            <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+              <div style="font-size:12px; color:#64748b;">Giá vốn</div>
+              <div style="font-size:22px; font-weight:700; color:#64748b;">2,100,000đ</div>
+            </div>
+            <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+              <div style="font-size:12px; color:#64748b;">Lợi nhuận</div>
+              <div style="font-size:22px; font-weight:700; color:#22c55e;">1,150,000đ</div>
+            </div>
+            <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+              <div style="font-size:12px; color:#64748b;">Số hóa đơn</div>
+              <div style="font-size:22px; font-weight:700; color:#0d9488;">24</div>
+            </div>
+          </div>
+          <!-- Single chart -->
+          <div style="background:#fafafa; border:1px solid #e2e8f0; border-radius:10px; padding:20px; height:180px; display:flex; align-items:flex-end; gap:8px; justify-content:center;">
+            <div style="width:40px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:4px 4px 0 0; height:60%;"></div>
+            <div style="width:40px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:4px 4px 0 0; height:80%;"></div>
+            <div style="width:40px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:4px 4px 0 0; height:45%;"></div>
+            <div style="width:40px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:4px 4px 0 0; height:90%;"></div>
+            <div style="width:40px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:4px 4px 0 0; height:70%;"></div>
+            <div style="width:40px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:4px 4px 0 0; height:55%;"></div>
+            <div style="width:40px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:4px 4px 0 0; height:100%;"></div>
+          </div>
+          <div style="text-align:center; font-size:12px; color:#94a3b8; margin-top:6px;">Biểu đồ cột — Doanh thu theo ngày</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Cards trên + 2 biểu đồ dưới (cột + đường)</h3>
+      <p>Chi tiết hơn — doanh thu bên trái, lợi nhuận bên phải</p>
+      <div class="mockup" style="margin-top: 12px;">
+        <div class="mockup-body" style="padding: 16px;">
+          <!-- Date picker row -->
+          <div style="display:flex; gap:8px; margin-bottom:16px; align-items:center;">
+            <div style="background:#e0f2fe; padding:6px 16px; border-radius:6px; font-size:13px; font-weight:600; color:#0d9488;">Hôm nay</div>
+            <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">Tuần này</div>
+            <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">Tháng này</div>
+            <div style="background:#f1f5f9; padding:6px 16px; border-radius:6px; font-size:13px; color:#64748b;">📅 Tùy chọn</div>
+          </div>
+          <!-- Stats cards -->
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;">
+            <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+              <div style="font-size:12px; color:#64748b;">Doanh thu</div>
+              <div style="font-size:22px; font-weight:700; color:#0d9488;">3,250,000đ</div>
+            </div>
+            <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+              <div style="font-size:12px; color:#64748b;">Giá vốn</div>
+              <div style="font-size:22px; font-weight:700; color:#64748b;">2,100,000đ</div>
+            </div>
+            <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+              <div style="font-size:12px; color:#64748b;">Lợi nhuận</div>
+              <div style="font-size:22px; font-weight:700; color:#22c55e;">1,150,000đ</div>
+            </div>
+            <div style="background:#f0fdfa; padding:16px; border-radius:10px; border:1px solid #ccfbf1;">
+              <div style="font-size:12px; color:#64748b;">Số hóa đơn</div>
+              <div style="font-size:22px; font-weight:700; color:#0d9488;">24</div>
+            </div>
+          </div>
+          <!-- Two charts side by side -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div style="background:#fafafa; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
+              <div style="font-size:13px; font-weight:600; margin-bottom:12px; color:#334155;">Doanh thu theo ngày</div>
+              <div style="height:130px; display:flex; align-items:flex-end; gap:6px; justify-content:center;">
+                <div style="width:28px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:3px 3px 0 0; height:60%;"></div>
+                <div style="width:28px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:3px 3px 0 0; height:80%;"></div>
+                <div style="width:28px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:3px 3px 0 0; height:45%;"></div>
+                <div style="width:28px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:3px 3px 0 0; height:90%;"></div>
+                <div style="width:28px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:3px 3px 0 0; height:70%;"></div>
+                <div style="width:28px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:3px 3px 0 0; height:55%;"></div>
+                <div style="width:28px; background:linear-gradient(to top, #0d9488, #14b8a6); border-radius:3px 3px 0 0; height:100%;"></div>
+              </div>
+            </div>
+            <div style="background:#fafafa; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
+              <div style="font-size:13px; font-weight:600; margin-bottom:12px; color:#334155;">Lợi nhuận theo ngày</div>
+              <div style="height:130px; position:relative; display:flex; align-items:center; justify-content:center;">
+                <!-- Line chart mockup using SVG -->
+                <svg width="100%" height="100%" viewBox="0 0 200 100" preserveAspectRatio="none" style="overflow:visible;">
+                  <polyline points="10,70 40,50 70,65 100,30 130,40 160,20 190,35" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="10" cy="70" r="3" fill="#22c55e"/>
+                  <circle cx="40" cy="50" r="3" fill="#22c55e"/>
+                  <circle cx="70" cy="65" r="3" fill="#22c55e"/>
+                  <circle cx="100" cy="30" r="3" fill="#22c55e"/>
+                  <circle cx="130" cy="40" r="3" fill="#22c55e"/>
+                  <circle cx="160" cy="20" r="3" fill="#22c55e"/>
+                  <circle cx="190" cy="35" r="3" fill="#22c55e"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -23,6 +23,7 @@ import InventoryChecksPage from './pages/InventoryChecksPage';
 import DebtsPage from './pages/DebtsPage';
 import POSPage from './pages/POSPage';
 import AlertsPage from './pages/AlertsPage';
+import ReportsPage from './pages/ReportsPage';
 import { Agentation } from 'agentation';
 
 // 🎨 Theme mới - Xanh ngọc (Teal) tươi mát, chuyên nghiệp
@@ -115,6 +116,7 @@ function App() {
               <Route path="/returns" element={<ReturnsPage />} />
               <Route path="/inventory-checks" element={<InventoryChecksPage />} />
               <Route path="/waste" element={<WastePage />} />
+              <Route path="/reports" element={<ReportsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

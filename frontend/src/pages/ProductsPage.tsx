@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Table, Button, Modal, Form, Input, InputNumber, Select, Switch, message, Space, Tag, Divider, Popconfirm } from 'antd';
-import { PlusOutlined, EditOutlined, StopOutlined, SearchOutlined, PrinterOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, StopOutlined, SearchOutlined, PrinterOutlined, DeleteOutlined, HistoryOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { ProductWithStock, Category, UnitConversion } from '../types';
+import type { PriceHistoryItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { formatVND, escapeHtml } from '../utils/format';
 import { PageHeader, EmptyState } from '../components/common';
@@ -24,6 +25,10 @@ export default function ProductsPage() {
   const [categoryForm] = Form.useForm();
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [form] = Form.useForm();
+  const [priceHistoryOpen, setPriceHistoryOpen] = useState(false);
+  const [priceHistory, setPriceHistory] = useState<PriceHistoryItem[]>([]);
+  const [priceHistoryLoading, setPriceHistoryLoading] = useState(false);
+  const [priceHistoryProduct, setPriceHistoryProduct] = useState<string>('');
 
   // Debounce search input
   useEffect(() => {
@@ -134,6 +139,20 @@ export default function ProductsPage() {
     }
   };
 
+  const fetchPriceHistory = async (productId: number, productName: string) => {
+    setPriceHistoryProduct(productName);
+    setPriceHistoryOpen(true);
+    setPriceHistoryLoading(true);
+    try {
+      const res = await api.get(`/products/${productId}/price-history`);
+      setPriceHistory(res.data || []);
+    } catch {
+      message.error('Lỗi tải lịch sử giá');
+    } finally {
+      setPriceHistoryLoading(false);
+    }
+  };
+
   // --- Quy đổi đơn vị ---
   const [conversions, setConversions] = useState<UnitConversion[]>([]);
   const [convForm] = Form.useForm();
@@ -239,8 +258,22 @@ export default function ProductsPage() {
     {
       title: 'Giá bán',
       dataIndex: 'sell_price',
-      width: 120,
-      render: (v: number) => formatVND(v),
+      width: 150,
+      render: (v: number, record: ProductWithStock) => (
+        <Space>
+          <span>{formatVND(v)}</span>
+          <Button
+            type="text"
+            size="small"
+            icon={<HistoryOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+              fetchPriceHistory(record.id, record.name);
+            }}
+            style={{ color: '#94a3b8' }}
+          />
+        </Space>
+      ),
       align: 'right' as const,
     },
     { title: 'ĐVT', dataIndex: 'unit', width: 80 },
@@ -456,6 +489,49 @@ export default function ProductsPage() {
             <Input.TextArea rows={3} placeholder="Mô tả nhóm hàng (tùy chọn)" />
           </Form.Item>
         </Form>
+      </Modal>
+      <Modal
+        title={`Lịch sử giá — ${priceHistoryProduct}`}
+        open={priceHistoryOpen}
+        onCancel={() => setPriceHistoryOpen(false)}
+        footer={null}
+        width={600}
+      >
+        <Table
+          dataSource={priceHistory}
+          rowKey="id"
+          loading={priceHistoryLoading}
+          pagination={false}
+          size="small"
+          locale={{ emptyText: 'Chưa có lịch sử thay đổi giá' }}
+          columns={[
+            {
+              title: 'Thời gian',
+              dataIndex: 'created_at',
+              width: 160,
+              render: (v: string) => new Date(v).toLocaleString('vi-VN'),
+            },
+            {
+              title: 'Giá cũ',
+              dataIndex: 'old_price',
+              width: 120,
+              align: 'right' as const,
+              render: (v: number) => <span style={{ color: '#ef4444' }}>{formatVND(v)}</span>,
+            },
+            {
+              title: 'Giá mới',
+              dataIndex: 'new_price',
+              width: 120,
+              align: 'right' as const,
+              render: (v: number) => <span style={{ color: '#22c55e' }}>{formatVND(v)}</span>,
+            },
+            {
+              title: 'Người sửa',
+              dataIndex: ['user', 'name'],
+              width: 120,
+            },
+          ]}
+        />
       </Modal>
     </div>
   );

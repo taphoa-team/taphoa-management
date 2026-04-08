@@ -36,3 +36,16 @@ func parseID(c *gin.Context) (uint, bool) {
 	}
 	return uint(id), true
 }
+
+// formatVNDBackend — format tiền VND cho backend messages
+func formatVNDBackend(amount int) string {
+	s := strconv.Itoa(amount)
+	result := ""
+	for i, c := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			result += "."
+		}
+		result += string(c)
+	}
+	return result + "đ"
+}
