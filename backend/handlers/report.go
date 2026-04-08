@@ -252,8 +252,8 @@ func GetTopProducts(c *gin.Context) {
 			p.id                                           AS product_id,
 			p.name                                         AS product_name,
 			COALESCE(SUM(ii.quantity), 0)                  AS total_qty,
-			COALESCE(SUM(ii.sell_price * ii.quantity), 0)  AS revenue,
-			COALESCE(SUM((ii.sell_price - ii.cost_price) * ii.quantity), 0) AS profit
+			COALESCE(SUM(ii.price * ii.quantity), 0)  AS revenue,
+			COALESCE(SUM((ii.price - ii.cost_price) * ii.quantity), 0) AS profit
 		FROM invoice_items ii
 		JOIN invoices i   ON i.id   = ii.invoice_id
 		JOIN products p   ON p.id   = ii.product_id
