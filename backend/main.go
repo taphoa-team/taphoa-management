@@ -61,12 +61,13 @@ func main() {
 	// Khởi tạo router
 	r := gin.Default()
 
-	// CORS — chỉ bật khi dev (có FRONTEND_URL), production serve static nên không cần
+	// CORS — cho phép frontend origins (local + tunnel)
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if frontendURL != "" {
+		allowedOrigins := []string{frontendURL, "http://localhost:3001"}
 		r.Use(cors.New(cors.Config{
-			AllowOrigins:     []string{frontendURL},
-			AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+			AllowOrigins:     allowedOrigins,
+			AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 			AllowHeaders:     []string{"Authorization", "Content-Type"},
 			AllowCredentials: true,
 		}))
