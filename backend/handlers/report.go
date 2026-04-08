@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"taphoa-management/backend/config"
 
 	"github.com/gin-gonic/gin"
+	"github.com/xuri/excelize/v2"
 )
 
 // --- Response structs ---
@@ -435,4 +437,197 @@ func GetCompareReport(c *gin.Context) {
 		Previous: previous,
 		Weekly:   weekly,
 	})
+}
+
+// --- Excel Export Handlers ---
+
+// ExportRevenueExcel — GET /api/reports/revenue/export?from=&to=
+func ExportRevenueExcel(c *gin.Context) {
+	from, to, err := parseDateRange(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format. Use YYYY-MM-DD"})
+		return
+	}
+
+	type dailyRow struct {
+		Date         string
+		Revenue      float64
+		InvoiceCount int
+	}
+	var rows []dailyRow
+
+	err = config.DB.Raw(`
+		SELECT
+			TO_CHAR(created_at, 'YYYY-MM-DD') AS date,
+			COALESCE(SUM(final_total), 0)     AS revenue,
+			COUNT(*)                           AS invoice_count
+		FROM invoices
+		WHERE status = 'completed'
+		  AND created_at >= ?
+		  AND created_at <= ?
+		GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD')
+		ORDER BY date
+	`, from, to).Scan(&rows).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query daily revenue"})
+		return
+	}
+
+	f := excelize.NewFile()
+	sheet := "Doanh thu"
+	f.SetSheetName("Sheet1", sheet)
+
+	// Headers
+	f.SetCellValue(sheet, "A1", "Ngày")
+	f.SetCellValue(sheet, "B1", "Doanh thu (đ)")
+	f.SetCellValue(sheet, "C1", "Số hóa đơn")
+
+	// Rows
+	for i, row := range rows {
+		r := i + 2
+		f.SetCellValue(sheet, fmt.Sprintf("A%d", r), row.Date)
+		f.SetCellValue(sheet, fmt.Sprintf("B%d", r), row.Revenue)
+		f.SetCellValue(sheet, fmt.Sprintf("C%d", r), row.InvoiceCount)
+	}
+
+	filename := fmt.Sprintf("doanh-thu-%s-%s.xlsx", from.Format("2006-01-02"), to.Format("2006-01-02"))
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+
+	if err := f.Write(c.Writer); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write Excel file"})
+	}
+}
+
+// ExportTopProductsExcel — GET /api/reports/top-products/export?from=&to=&sort=desc
+func ExportTopProductsExcel(c *gin.Context) {
+	from, to, err := parseDateRange(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format. Use YYYY-MM-DD"})
+		return
+	}
+
+	sortOrder := "DESC"
+	sortLabel := "ban-chay"
+	if s := c.DefaultQuery("sort", "desc"); s == "asc" {
+		sortOrder = "ASC"
+		sortLabel = "ban-e"
+	}
+
+	const limit = 50
+
+	var rows []TopProductItem
+
+	query := `
+		SELECT
+			p.id                                           AS product_id,
+			p.name                                         AS product_name,
+			COALESCE(SUM(ii.quantity), 0)                  AS total_qty,
+			COALESCE(SUM(ii.price * ii.quantity), 0)  AS revenue,
+			COALESCE(SUM((ii.price - ii.cost_price) * ii.quantity), 0) AS profit
+		FROM invoice_items ii
+		JOIN invoices i   ON i.id   = ii.invoice_id
+		JOIN products p   ON p.id   = ii.product_id
+		WHERE i.status = 'completed'
+		  AND i.created_at >= ?
+		  AND i.created_at <= ?
+		GROUP BY p.id, p.name
+		ORDER BY total_qty ` + sortOrder + `
+		LIMIT ?
+	`
+
+	err = config.DB.Raw(query, from, to, limit).Scan(&rows).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query top products"})
+		return
+	}
+
+	f := excelize.NewFile()
+	sheet := "Top san pham"
+	f.SetSheetName("Sheet1", sheet)
+
+	// Headers
+	f.SetCellValue(sheet, "A1", "#")
+	f.SetCellValue(sheet, "B1", "Sản phẩm")
+	f.SetCellValue(sheet, "C1", "SL bán")
+	f.SetCellValue(sheet, "D1", "Doanh thu (đ)")
+	f.SetCellValue(sheet, "E1", "Lợi nhuận (đ)")
+
+	// Rows
+	for i, row := range rows {
+		r := i + 2
+		f.SetCellValue(sheet, fmt.Sprintf("A%d", r), i+1)
+		f.SetCellValue(sheet, fmt.Sprintf("B%d", r), row.ProductName)
+		f.SetCellValue(sheet, fmt.Sprintf("C%d", r), row.TotalQty)
+		f.SetCellValue(sheet, fmt.Sprintf("D%d", r), row.Revenue)
+		f.SetCellValue(sheet, fmt.Sprintf("E%d", r), row.Profit)
+	}
+
+	filename := fmt.Sprintf("top-products-%s-%s-%s.xlsx", sortLabel, from.Format("2006-01-02"), to.Format("2006-01-02"))
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+
+	if err := f.Write(c.Writer); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write Excel file"})
+	}
+}
+
+// ExportCompareExcel — GET /api/reports/compare/export
+func ExportCompareExcel(c *gin.Context) {
+	now := time.Now()
+
+	currentFrom := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	currentTo := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
+
+	firstOfThisMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	previousFrom := firstOfThisMonth.AddDate(0, -1, 0)
+	previousTo := firstOfThisMonth.Add(-time.Second)
+
+	current, err := getPeriodSummary(currentFrom, currentTo)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query current period"})
+		return
+	}
+
+	previous, err := getPeriodSummary(previousFrom, previousTo)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query previous period"})
+		return
+	}
+
+	f := excelize.NewFile()
+	sheet := "So sanh"
+	f.SetSheetName("Sheet1", sheet)
+
+	// Headers
+	f.SetCellValue(sheet, "A1", "Chỉ số")
+	f.SetCellValue(sheet, "B1", "Tháng trước")
+	f.SetCellValue(sheet, "C1", "Tháng này")
+	f.SetCellValue(sheet, "D1", "Chênh lệch")
+
+	// Row 2: Doanh thu
+	f.SetCellValue(sheet, "A2", "Doanh thu")
+	f.SetCellValue(sheet, "B2", previous.Revenue)
+	f.SetCellValue(sheet, "C2", current.Revenue)
+	f.SetCellValue(sheet, "D2", current.Revenue-previous.Revenue)
+
+	// Row 3: Lợi nhuận
+	f.SetCellValue(sheet, "A3", "Lợi nhuận")
+	f.SetCellValue(sheet, "B3", previous.Profit)
+	f.SetCellValue(sheet, "C3", current.Profit)
+	f.SetCellValue(sheet, "D3", current.Profit-previous.Profit)
+
+	// Row 4: Số hóa đơn
+	f.SetCellValue(sheet, "A4", "Số hóa đơn")
+	f.SetCellValue(sheet, "B4", previous.InvoiceCount)
+	f.SetCellValue(sheet, "C4", current.InvoiceCount)
+	f.SetCellValue(sheet, "D4", current.InvoiceCount-previous.InvoiceCount)
+
+	filename := fmt.Sprintf("so-sanh-%s.xlsx", now.Format("2006-01"))
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+
+	if err := f.Write(c.Writer); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write Excel file"})
+	}
 }

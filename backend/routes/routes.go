@@ -125,6 +125,11 @@ func SetupRoutes(r *gin.Engine) {
 				admin.GET("/reports/profit", handlers.GetProfitReport)
 				admin.GET("/reports/top-products", handlers.GetTopProducts)
 				admin.GET("/reports/compare", handlers.GetCompareReport)
+
+				// === Report exports ===
+				admin.GET("/reports/revenue/export", handlers.ExportRevenueExcel)
+				admin.GET("/reports/top-products/export", handlers.ExportTopProductsExcel)
+				admin.GET("/reports/compare/export", handlers.ExportCompareExcel)
 			}
 		}
 	}
