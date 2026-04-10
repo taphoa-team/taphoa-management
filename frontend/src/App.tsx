@@ -1,32 +1,46 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, Spin } from 'antd';
 import viVN from 'antd/locale/vi_VN';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './components/AppLayout';
-import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
-import CategoriesPage from './pages/CategoriesPage';
-import SuppliersPage from './pages/SuppliersPage';
-import ProductsPage from './pages/ProductsPage';
-import CustomersPage from './pages/CustomersPage';
-import CustomerDetailPage from './pages/CustomerDetailPage';
-import InventoryPage from './pages/InventoryPage';
-import ShiftsPage from './pages/ShiftsPage';
-import InvoicesPage from './pages/InvoicesPage';
-import InvoiceDetailPage from './pages/InvoiceDetailPage';
-import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
-import ReturnsPage from './pages/ReturnsPage';
-import WastePage from './pages/WastePage';
-import InventoryChecksPage from './pages/InventoryChecksPage';
-import DebtsPage from './pages/DebtsPage';
-import POSPage from './pages/POSPage';
-import AlertsPage from './pages/AlertsPage';
-import ReportsPage from './pages/ReportsPage';
 import { Agentation } from 'agentation';
 
+// 🚀 Lazy loading các pages để giảm bundle size ban đầu
+const LoginPage = React.lazy(() => import('./pages/LoginPage'));
+const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
+const CategoriesPage = React.lazy(() => import('./pages/CategoriesPage'));
+const SuppliersPage = React.lazy(() => import('./pages/SuppliersPage'));
+const ProductsPage = React.lazy(() => import('./pages/ProductsPage'));
+const CustomersPage = React.lazy(() => import('./pages/CustomersPage'));
+const CustomerDetailPage = React.lazy(() => import('./pages/CustomerDetailPage'));
+const InventoryPage = React.lazy(() => import('./pages/InventoryPage'));
+const ShiftsPage = React.lazy(() => import('./pages/ShiftsPage'));
+const InvoicesPage = React.lazy(() => import('./pages/InvoicesPage'));
+const InvoiceDetailPage = React.lazy(() => import('./pages/InvoiceDetailPage'));
+const PurchaseOrdersPage = React.lazy(() => import('./pages/PurchaseOrdersPage'));
+const ReturnsPage = React.lazy(() => import('./pages/ReturnsPage'));
+const WastePage = React.lazy(() => import('./pages/WastePage'));
+const InventoryChecksPage = React.lazy(() => import('./pages/InventoryChecksPage'));
+const DebtsPage = React.lazy(() => import('./pages/DebtsPage'));
+const POSPage = React.lazy(() => import('./pages/POSPage'));
+const AlertsPage = React.lazy(() => import('./pages/AlertsPage'));
+const ReportsPage = React.lazy(() => import('./pages/ReportsPage'));
+
 // 🎨 Theme mới - Xanh ngọc (Teal) tươi mát, chuyên nghiệp
+// 🔄 Loading fallback component khi lazy load
+const PageLoader = () => (
+  <div style={{ 
+    display: 'flex', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    height: '100vh' 
+  }}>
+    <Spin size="large" tip="Đang tải..." />
+  </div>
+);
+
 const theme = {
   token: {
     // Màu chính - Xanh ngọc đậm
