@@ -53,11 +53,65 @@ const yAxisFormatter = (v: unknown) => {
   return n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000)}K` : `${n}`;
 };
 
+// --- Shared hook for date range filter ---
+
+function useDateRangeFilter(defaultQuick: QuickRange = 'month') {
+  const [quick, setQuick] = useState<QuickRange>(defaultQuick);
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>(getDateRange(defaultQuick));
+
+  const handleQuickChange = useCallback((val: string | number) => {
+    const q = val as QuickRange;
+    setQuick(q);
+    if (q !== 'custom') {
+      setDateRange(getDateRange(q));
+    }
+  }, []);
+
+  const handleRangeChange = useCallback((_dates: unknown, dateStrings: [string, string]) => {
+    const from = dayjs(dateStrings[0], 'DD/MM/YYYY');
+    const to = dayjs(dateStrings[1], 'DD/MM/YYYY');
+    if (from.isValid() && to.isValid()) {
+      setDateRange([from, to]);
+    }
+  }, []);
+
+  return { quick, dateRange, handleQuickChange, handleRangeChange };
+}
+
+// --- Shared DateRangeControls component ---
+
+function DateRangeControls({ quick, dateRange, handleQuickChange, handleRangeChange, quickOptions }: {
+  quick: QuickRange;
+  dateRange: [Dayjs, Dayjs];
+  handleQuickChange: (val: string | number) => void;
+  handleRangeChange: (_dates: unknown, dateStrings: [string, string]) => void;
+  quickOptions?: { label: string; value: string }[];
+}) {
+  const options = quickOptions ?? [
+    { label: 'Hôm nay', value: 'today' },
+    { label: 'Tuần này', value: 'week' },
+    { label: 'Tháng này', value: 'month' },
+    { label: 'Tùy chọn', value: 'custom' },
+  ];
+
+  return (
+    <Space wrap>
+      <Segmented value={quick} onChange={handleQuickChange} options={options} />
+      {quick === 'custom' && (
+        <RangePicker
+          value={dateRange}
+          onChange={handleRangeChange as React.ComponentProps<typeof RangePicker>['onChange']}
+          format="DD/MM/YYYY"
+        />
+      )}
+    </Space>
+  );
+}
+
 // ─── Tab 1: RevenueTab ────────────────────────────────────────────────────────
 
 function RevenueTab() {
-  const [quick, setQuick] = useState<QuickRange>('month');
-  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>(getDateRange('month'));
+  const { quick, dateRange, handleQuickChange, handleRangeChange } = useDateRangeFilter('month');
   const [revenue, setRevenue] = useState<RevenueReport | null>(null);
   const [profit, setProfit] = useState<ProfitDataPoint[]>([]);
   const [loading, setLoading] = useState(false);
@@ -89,21 +143,6 @@ function RevenueTab() {
     fetchData(dateRange[0], dateRange[1]);
   }, [dateRange, fetchData]);
 
-  const handleQuickChange = (val: string | number) => {
-    const q = val as QuickRange;
-    setQuick(q);
-    if (q !== 'custom') {
-      const range = getDateRange(q);
-      setDateRange(range);
-    }
-  };
-
-  const handleRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
-    if (dates && dates[0] && dates[1]) {
-      setDateRange([dates[0], dates[1]]);
-    }
-  };
-
   const barData = (revenue?.daily ?? []).map((d) => ({
     date: formatChartDate(d.date),
     'Doanh thu': d.revenue,
@@ -119,25 +158,12 @@ function RevenueTab() {
       {/* Date picker row */}
       <Card size="small">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Space wrap>
-            <Segmented
-              value={quick}
-              onChange={handleQuickChange}
-              options={[
-                { label: 'Hôm nay', value: 'today' },
-                { label: 'Tuần này', value: 'week' },
-                { label: 'Tháng này', value: 'month' },
-                { label: 'Tùy chọn', value: 'custom' },
-              ]}
-            />
-            {quick === 'custom' && (
-              <RangePicker
-                value={dateRange}
-                onChange={handleRangeChange as any}
-                format="DD/MM/YYYY"
-              />
-            )}
-          </Space>
+          <DateRangeControls
+            quick={quick}
+            dateRange={dateRange}
+            handleQuickChange={handleQuickChange}
+            handleRangeChange={handleRangeChange}
+          />
           <Button
             icon={<DownloadOutlined />}
             onClick={() => downloadExcel(`/reports/revenue/export?from=${dateRange[0].format('YYYY-MM-DD')}&to=${dateRange[1].format('YYYY-MM-DD')}`)}
@@ -348,8 +374,7 @@ function CompareTab() {
 
 function TopProductsTab() {
   const [sortMode, setSortMode] = useState<'desc' | 'asc'>('desc');
-  const [quick, setQuick] = useState<QuickRange>('month');
-  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>(getDateRange('month'));
+  const { quick, dateRange, handleQuickChange, handleRangeChange } = useDateRangeFilter('month');
   const [data, setData] = useState<TopProductItem[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -375,21 +400,6 @@ function TopProductsTab() {
   useEffect(() => {
     fetchData(dateRange[0], dateRange[1], sortMode);
   }, [dateRange, sortMode, fetchData]);
-
-  const handleQuickChange = (val: string | number) => {
-    const q = val as QuickRange;
-    setQuick(q);
-    if (q !== 'custom') {
-      const range = getDateRange(q);
-      setDateRange(range);
-    }
-  };
-
-  const handleRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
-    if (dates && dates[0] && dates[1]) {
-      setDateRange([dates[0], dates[1]]);
-    }
-  };
 
   const rankColors: Record<number, string> = { 1: '#facc15', 2: '#9ca3af', 3: '#f97316' };
 
@@ -453,22 +463,17 @@ function TopProductsTab() {
                 { label: 'Bán ế', value: 'asc' },
               ]}
             />
-            <Segmented
-              value={quick}
-              onChange={handleQuickChange}
-              options={[
+            <DateRangeControls
+              quick={quick}
+              dateRange={dateRange}
+              handleQuickChange={handleQuickChange}
+              handleRangeChange={handleRangeChange}
+              quickOptions={[
                 { label: 'Tuần này', value: 'week' },
                 { label: 'Tháng này', value: 'month' },
                 { label: 'Tùy chọn', value: 'custom' },
               ]}
             />
-            {quick === 'custom' && (
-              <RangePicker
-                value={dateRange}
-                onChange={handleRangeChange as any}
-                format="DD/MM/YYYY"
-              />
-            )}
           </Space>
           <Button
             icon={<DownloadOutlined />}

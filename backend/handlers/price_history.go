@@ -24,11 +24,14 @@ func GetPriceHistory(c *gin.Context) {
 	}
 
 	var history []models.PriceHistory
-	config.DB.
+	if err := config.DB.
 		Preload("User").
 		Where("product_id = ?", id).
 		Order("created_at DESC").
-		Find(&history)
+		Find(&history).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi truy vấn lịch sử giá"})
+		return
+	}
 
 	c.JSON(http.StatusOK, history)
 }

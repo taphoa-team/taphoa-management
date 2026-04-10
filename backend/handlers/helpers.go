@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -40,12 +41,14 @@ func parseID(c *gin.Context) (uint, bool) {
 // formatVNDBackend — format tiền VND cho backend messages
 func formatVNDBackend(amount int) string {
 	s := strconv.Itoa(amount)
-	result := ""
+	var b strings.Builder
+	b.Grow(len(s) + len(s)/3 + 2)
 	for i, c := range s {
 		if i > 0 && (len(s)-i)%3 == 0 {
-			result += "."
+			b.WriteByte('.')
 		}
-		result += string(c)
+		b.WriteRune(c)
 	}
-	return result + "đ"
+	b.WriteString("đ")
+	return b.String()
 }

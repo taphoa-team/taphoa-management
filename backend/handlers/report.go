@@ -14,6 +14,8 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+const invoiceStatusCompleted = "completed"
+
 // --- Response structs ---
 
 type RevenueDataPoint struct {
@@ -38,7 +40,34 @@ type ProfitDataPoint struct {
 	Profit  float64 `json:"profit"`
 }
 
-// --- Helpers ---
+type TopProductItem struct {
+	ProductID   uint    `json:"product_id"`
+	ProductName string  `json:"product_name"`
+	TotalQty    int     `json:"total_qty"`
+	Revenue     float64 `json:"revenue"`
+	Profit      float64 `json:"profit"`
+}
+
+type ComparePeriod struct {
+	Revenue      float64 `json:"revenue"`
+	COGS         float64 `json:"cogs"`
+	Profit       float64 `json:"profit"`
+	InvoiceCount int     `json:"invoice_count"`
+}
+
+type CompareWeeklyItem struct {
+	Week            int     `json:"week"`
+	CurrentRevenue  float64 `json:"current_revenue"`
+	PreviousRevenue float64 `json:"previous_revenue"`
+}
+
+type CompareReport struct {
+	Current  ComparePeriod       `json:"current"`
+	Previous ComparePeriod       `json:"previous"`
+	Weekly   []CompareWeeklyItem `json:"weekly"`
+}
+
+// --- Shared query helpers ---
 
 // parseDateRange parses `from` and `to` query params (YYYY-MM-DD).
 // Defaults to today for both. `to` is extended to end of day (23:59:59).
@@ -59,10 +88,147 @@ func parseDateRange(c *gin.Context) (time.Time, time.Time, error) {
 		return time.Time{}, time.Time{}, err
 	}
 
+	if from.After(toDay) {
+		return time.Time{}, time.Time{}, fmt.Errorf("'from' must not be after 'to'")
+	}
+
 	// Include the full end day up to 23:59:59
 	to := toDay.Add(24*time.Hour - time.Second)
 
 	return from, to, nil
+}
+
+// queryDailyRevenue returns daily revenue breakdown for a date range.
+func queryDailyRevenue(from, to time.Time) ([]RevenueDataPoint, error) {
+	var rows []RevenueDataPoint
+
+	err := config.DB.Raw(`
+		SELECT
+			TO_CHAR(created_at, 'YYYY-MM-DD') AS date,
+			COALESCE(SUM(final_total), 0)     AS revenue,
+			COUNT(*)                           AS invoice_count
+		FROM invoices
+		WHERE status = ?
+		  AND created_at >= ?
+		  AND created_at <= ?
+		GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD')
+		ORDER BY date
+	`, invoiceStatusCompleted, from, to).Scan(&rows).Error
+
+	return rows, err
+}
+
+// queryTopProducts returns top/bottom products by quantity sold.
+func queryTopProducts(from, to time.Time, sortOrder string, limit int) ([]TopProductItem, error) {
+	var rows []TopProductItem
+
+	query := `
+		SELECT
+			p.id                                           AS product_id,
+			p.name                                         AS product_name,
+			COALESCE(SUM(ii.quantity), 0)                  AS total_qty,
+			COALESCE(SUM(ii.price * ii.quantity), 0)       AS revenue,
+			COALESCE(SUM((ii.price - ii.cost_price) * ii.quantity), 0) AS profit
+		FROM invoice_items ii
+		JOIN invoices i   ON i.id   = ii.invoice_id
+		JOIN products p   ON p.id   = ii.product_id
+		WHERE i.status = ?
+		  AND i.created_at >= ?
+		  AND i.created_at <= ?
+		GROUP BY p.id, p.name
+		ORDER BY total_qty ` + sortOrder + `
+		LIMIT ?
+	`
+
+	err := config.DB.Raw(query, invoiceStatusCompleted, from, to, limit).Scan(&rows).Error
+	return rows, err
+}
+
+// getPeriodSummary returns revenue/cogs/profit/invoice_count for a time range.
+func getPeriodSummary(from, to time.Time) (ComparePeriod, error) {
+	var revenueResult struct {
+		Revenue      float64
+		InvoiceCount int
+	}
+
+	err := config.DB.Raw(`
+		SELECT COALESCE(SUM(final_total), 0) AS revenue, COUNT(*) AS invoice_count
+		FROM invoices
+		WHERE status = ?
+		  AND created_at >= ?
+		  AND created_at <= ?
+	`, invoiceStatusCompleted, from, to).Scan(&revenueResult).Error
+	if err != nil {
+		return ComparePeriod{}, err
+	}
+
+	var cogsResult struct {
+		COGS float64
+	}
+
+	err = config.DB.Raw(`
+		SELECT COALESCE(SUM(ii.cost_price * ii.quantity), 0) AS cogs
+		FROM invoice_items ii
+		JOIN invoices i ON i.id = ii.invoice_id
+		WHERE i.status = ?
+		  AND i.created_at >= ?
+		  AND i.created_at <= ?
+	`, invoiceStatusCompleted, from, to).Scan(&cogsResult).Error
+	if err != nil {
+		return ComparePeriod{}, err
+	}
+
+	return ComparePeriod{
+		Revenue:      revenueResult.Revenue,
+		COGS:         cogsResult.COGS,
+		Profit:       revenueResult.Revenue - cogsResult.COGS,
+		InvoiceCount: revenueResult.InvoiceCount,
+	}, nil
+}
+
+type weeklyRow struct {
+	Week    int
+	Revenue float64
+}
+
+// queryWeeklyRevenue returns weekly revenue breakdown for a date range.
+func queryWeeklyRevenue(from, to time.Time) ([]weeklyRow, error) {
+	var rows []weeklyRow
+
+	err := config.DB.Raw(`
+		SELECT
+			(EXTRACT(DAY FROM created_at)::int - 1) / 7 + 1 AS week,
+			COALESCE(SUM(final_total), 0)                    AS revenue
+		FROM invoices
+		WHERE status = ?
+		  AND created_at >= ?
+		  AND created_at <= ?
+		GROUP BY (EXTRACT(DAY FROM created_at)::int - 1) / 7 + 1
+		ORDER BY week
+	`, invoiceStatusCompleted, from, to).Scan(&rows).Error
+
+	return rows, err
+}
+
+// compareMonthRanges returns current and previous month date ranges.
+func compareMonthRanges() (currentFrom, currentTo, previousFrom, previousTo time.Time) {
+	now := time.Now()
+	currentFrom = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	currentTo = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
+	previousFrom = currentFrom.AddDate(0, -1, 0)
+	previousTo = currentFrom.Add(-time.Second)
+	return
+}
+
+// sendExcel writes an excelize file to the HTTP response as a download.
+func sendExcel(c *gin.Context, f *excelize.File, filename string) {
+	buf := new(bytes.Buffer)
+	if err := f.Write(buf); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi tạo file Excel"})
+		return
+	}
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buf.Bytes())
 }
 
 // --- Handlers ---
@@ -88,10 +254,10 @@ func GetRevenueReport(c *gin.Context) {
 			COUNT(*)                           AS invoice_count,
 			COALESCE(SUM(discount_amount), 0) AS total_discount
 		FROM invoices
-		WHERE status = 'completed'
+		WHERE status = ?
 		  AND created_at >= ?
 		  AND created_at <= ?
-	`, from, to).Scan(&summary).Error
+	`, invoiceStatusCompleted, from, to).Scan(&summary).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query revenue summary"})
 		return
@@ -107,55 +273,26 @@ func GetRevenueReport(c *gin.Context) {
 			COALESCE(SUM(ii.cost_price * ii.quantity), 0) AS total_cogs
 		FROM invoice_items ii
 		JOIN invoices i ON i.id = ii.invoice_id
-		WHERE i.status = 'completed'
+		WHERE i.status = ?
 		  AND i.created_at >= ?
 		  AND i.created_at <= ?
-	`, from, to).Scan(&cogsResult).Error
+	`, invoiceStatusCompleted, from, to).Scan(&cogsResult).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query COGS"})
 		return
 	}
 
 	// Daily breakdown
-	type dailyRow struct {
-		Date         string
-		Revenue      float64
-		InvoiceCount int
-	}
-	var dailyRows []dailyRow
-
-	err = config.DB.Raw(`
-		SELECT
-			TO_CHAR(created_at, 'YYYY-MM-DD') AS date,
-			COALESCE(SUM(final_total), 0)     AS revenue,
-			COUNT(*)                           AS invoice_count
-		FROM invoices
-		WHERE status = 'completed'
-		  AND created_at >= ?
-		  AND created_at <= ?
-		GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD')
-		ORDER BY date
-	`, from, to).Scan(&dailyRows).Error
+	daily, err := queryDailyRevenue(from, to)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query daily revenue"})
 		return
 	}
 
-	daily := make([]RevenueDataPoint, 0, len(dailyRows))
-	for _, row := range dailyRows {
-		daily = append(daily, RevenueDataPoint{
-			Date:         row.Date,
-			Revenue:      row.Revenue,
-			InvoiceCount: row.InvoiceCount,
-		})
-	}
-
-	totalProfit := summary.TotalRevenue - cogsResult.TotalCOGS
-
 	c.JSON(http.StatusOK, RevenueReport{
 		TotalRevenue:  summary.TotalRevenue,
 		TotalCOGS:     cogsResult.TotalCOGS,
-		TotalProfit:   totalProfit,
+		TotalProfit:   summary.TotalRevenue - cogsResult.TotalCOGS,
 		InvoiceCount:  summary.InvoiceCount,
 		TotalDiscount: summary.TotalDiscount,
 		Daily:         daily,
@@ -170,13 +307,7 @@ func GetProfitReport(c *gin.Context) {
 		return
 	}
 
-	type dailyProfitRow struct {
-		Date    string
-		Revenue float64
-		COGS    float64
-		Profit  float64
-	}
-	var rows []dailyProfitRow
+	var rows []ProfitDataPoint
 
 	err = config.DB.Raw(`
 		SELECT
@@ -190,38 +321,22 @@ func GetProfitReport(c *gin.Context) {
 			FROM invoice_items
 			GROUP BY invoice_id
 		) item_cogs ON item_cogs.invoice_id = i.id
-		WHERE i.status = 'completed'
+		WHERE i.status = ?
 		  AND i.created_at >= ?
 		  AND i.created_at <= ?
 		GROUP BY TO_CHAR(i.created_at, 'YYYY-MM-DD')
 		ORDER BY date
-	`, from, to).Scan(&rows).Error
+	`, invoiceStatusCompleted, from, to).Scan(&rows).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query profit data"})
 		return
 	}
 
-	daily := make([]ProfitDataPoint, 0, len(rows))
-	for _, row := range rows {
-		daily = append(daily, ProfitDataPoint{
-			Date:    row.Date,
-			Revenue: row.Revenue,
-			COGS:    row.COGS,
-			Profit:  row.Profit,
-		})
+	if rows == nil {
+		rows = []ProfitDataPoint{}
 	}
 
-	c.JSON(http.StatusOK, daily)
-}
-
-// --- Top Products ---
-
-type TopProductItem struct {
-	ProductID   uint   `json:"product_id"`
-	ProductName string `json:"product_name"`
-	TotalQty    int    `json:"total_qty"`
-	Revenue     int    `json:"revenue"`
-	Profit      int    `json:"profit"`
+	c.JSON(http.StatusOK, rows)
 }
 
 // GetTopProducts — GET /api/reports/top-products?from=&to=&limit=10&sort=desc
@@ -252,27 +367,7 @@ func GetTopProducts(c *gin.Context) {
 		sortOrder = "ASC"
 	}
 
-	var rows []TopProductItem
-
-	query := `
-		SELECT
-			p.id                                           AS product_id,
-			p.name                                         AS product_name,
-			COALESCE(SUM(ii.quantity), 0)                  AS total_qty,
-			COALESCE(SUM(ii.price * ii.quantity), 0)  AS revenue,
-			COALESCE(SUM((ii.price - ii.cost_price) * ii.quantity), 0) AS profit
-		FROM invoice_items ii
-		JOIN invoices i   ON i.id   = ii.invoice_id
-		JOIN products p   ON p.id   = ii.product_id
-		WHERE i.status = 'completed'
-		  AND i.created_at >= ?
-		  AND i.created_at <= ?
-		GROUP BY p.id, p.name
-		ORDER BY total_qty ` + sortOrder + `
-		LIMIT ?
-	`
-
-	err = config.DB.Raw(query, from, to, limit).Scan(&rows).Error
+	rows, err := queryTopProducts(from, to, sortOrder, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query top products"})
 		return
@@ -285,82 +380,10 @@ func GetTopProducts(c *gin.Context) {
 	c.JSON(http.StatusOK, rows)
 }
 
-// --- Compare Report ---
-
-type ComparePeriod struct {
-	Revenue      int `json:"revenue"`
-	COGS         int `json:"cogs"`
-	Profit       int `json:"profit"`
-	InvoiceCount int `json:"invoice_count"`
-}
-
-type CompareWeeklyItem struct {
-	Week            int `json:"week"`
-	CurrentRevenue  int `json:"current_revenue"`
-	PreviousRevenue int `json:"previous_revenue"`
-}
-
-type CompareReport struct {
-	Current  ComparePeriod       `json:"current"`
-	Previous ComparePeriod       `json:"previous"`
-	Weekly   []CompareWeeklyItem `json:"weekly"`
-}
-
-// getPeriodSummary returns revenue/cogs/profit/invoice_count for a time range.
-func getPeriodSummary(from, to time.Time) (ComparePeriod, error) {
-	var revenueResult struct {
-		Revenue      int
-		InvoiceCount int
-	}
-
-	err := config.DB.Raw(`
-		SELECT COALESCE(SUM(final_total), 0) AS revenue, COUNT(*) AS invoice_count
-		FROM invoices
-		WHERE status = 'completed'
-		  AND created_at >= ?
-		  AND created_at <= ?
-	`, from, to).Scan(&revenueResult).Error
-	if err != nil {
-		return ComparePeriod{}, err
-	}
-
-	var cogsResult struct {
-		COGS int
-	}
-
-	err = config.DB.Raw(`
-		SELECT COALESCE(SUM(ii.cost_price * ii.quantity), 0) AS cogs
-		FROM invoice_items ii
-		JOIN invoices i ON i.id = ii.invoice_id
-		WHERE i.status = 'completed'
-		  AND i.created_at >= ?
-		  AND i.created_at <= ?
-	`, from, to).Scan(&cogsResult).Error
-	if err != nil {
-		return ComparePeriod{}, err
-	}
-
-	return ComparePeriod{
-		Revenue:      revenueResult.Revenue,
-		COGS:         cogsResult.COGS,
-		Profit:       revenueResult.Revenue - cogsResult.COGS,
-		InvoiceCount: revenueResult.InvoiceCount,
-	}, nil
-}
-
 // GetCompareReport — GET /api/reports/compare
 // Compares current month (1st → today) vs previous month (1st → end).
 func GetCompareReport(c *gin.Context) {
-	now := time.Now()
-
-	// Current period: 1st of this month → end of today
-	currentFrom := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	currentTo := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
-
-	// Previous period: 1st of last month → last day of last month at 23:59:59
-	firstOfThisMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	previousFrom := firstOfThisMonth.AddDate(0, -1, 0)
-	previousTo := firstOfThisMonth.Add(-time.Second) // one second before 1st of this month = 23:59:59 of last day last month
+	currentFrom, currentTo, previousFrom, previousTo := compareMonthRanges()
 
 	current, err := getPeriodSummary(currentFrom, currentTo)
 	if err != nil {
@@ -375,39 +398,13 @@ func GetCompareReport(c *gin.Context) {
 	}
 
 	// Weekly breakdown for both periods
-	type weeklyRow struct {
-		Week    int
-		Revenue int
-	}
-	var currentWeekly, previousWeekly []weeklyRow
-
-	err = config.DB.Raw(`
-		SELECT
-			(EXTRACT(DAY FROM created_at)::int - 1) / 7 + 1 AS week,
-			COALESCE(SUM(final_total), 0)                    AS revenue
-		FROM invoices
-		WHERE status = 'completed'
-		  AND created_at >= ?
-		  AND created_at <= ?
-		GROUP BY (EXTRACT(DAY FROM created_at)::int - 1) / 7 + 1
-		ORDER BY week
-	`, currentFrom, currentTo).Scan(&currentWeekly).Error
+	currentWeekly, err := queryWeeklyRevenue(currentFrom, currentTo)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query current weekly data"})
 		return
 	}
 
-	err = config.DB.Raw(`
-		SELECT
-			(EXTRACT(DAY FROM created_at)::int - 1) / 7 + 1 AS week,
-			COALESCE(SUM(final_total), 0)                    AS revenue
-		FROM invoices
-		WHERE status = 'completed'
-		  AND created_at >= ?
-		  AND created_at <= ?
-		GROUP BY (EXTRACT(DAY FROM created_at)::int - 1) / 7 + 1
-		ORDER BY week
-	`, previousFrom, previousTo).Scan(&previousWeekly).Error
+	previousWeekly, err := queryWeeklyRevenue(previousFrom, previousTo)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query previous weekly data"})
 		return
@@ -461,25 +458,13 @@ func ExportRevenueExcel(c *gin.Context) {
 		return
 	}
 
-	type dailyRow struct {
-		Date         string
-		Revenue      float64
-		InvoiceCount int
+	// Cap at 1 year to prevent unbounded exports
+	if to.Sub(from).Hours() > 366*24 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Date range must not exceed 1 year"})
+		return
 	}
-	var rows []dailyRow
 
-	err = config.DB.Raw(`
-		SELECT
-			TO_CHAR(created_at, 'YYYY-MM-DD') AS date,
-			COALESCE(SUM(final_total), 0)     AS revenue,
-			COUNT(*)                           AS invoice_count
-		FROM invoices
-		WHERE status = 'completed'
-		  AND created_at >= ?
-		  AND created_at <= ?
-		GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD')
-		ORDER BY date
-	`, from, to).Scan(&rows).Error
+	rows, err := queryDailyRevenue(from, to)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query daily revenue"})
 		return
@@ -504,13 +489,7 @@ func ExportRevenueExcel(c *gin.Context) {
 	}
 
 	filename := fmt.Sprintf("doanh-thu-%s-%s.xlsx", from.Format("2006-01-02"), to.Format("2006-01-02"))
-	buf := new(bytes.Buffer)
-	if err := f.Write(buf); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi tạo file Excel"})
-		return
-	}
-	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
-	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buf.Bytes())
+	sendExcel(c, f, filename)
 }
 
 // ExportTopProductsExcel — GET /api/reports/top-products/export?from=&to=&sort=desc
@@ -528,29 +507,7 @@ func ExportTopProductsExcel(c *gin.Context) {
 		sortLabel = "ban-e"
 	}
 
-	const limit = 50
-
-	var rows []TopProductItem
-
-	query := `
-		SELECT
-			p.id                                           AS product_id,
-			p.name                                         AS product_name,
-			COALESCE(SUM(ii.quantity), 0)                  AS total_qty,
-			COALESCE(SUM(ii.price * ii.quantity), 0)  AS revenue,
-			COALESCE(SUM((ii.price - ii.cost_price) * ii.quantity), 0) AS profit
-		FROM invoice_items ii
-		JOIN invoices i   ON i.id   = ii.invoice_id
-		JOIN products p   ON p.id   = ii.product_id
-		WHERE i.status = 'completed'
-		  AND i.created_at >= ?
-		  AND i.created_at <= ?
-		GROUP BY p.id, p.name
-		ORDER BY total_qty ` + sortOrder + `
-		LIMIT ?
-	`
-
-	err = config.DB.Raw(query, from, to, limit).Scan(&rows).Error
+	rows, err := queryTopProducts(from, to, sortOrder, 50)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query top products"})
 		return
@@ -579,25 +536,12 @@ func ExportTopProductsExcel(c *gin.Context) {
 	}
 
 	filename := fmt.Sprintf("top-products-%s-%s-%s.xlsx", sortLabel, from.Format("2006-01-02"), to.Format("2006-01-02"))
-	buf := new(bytes.Buffer)
-	if err := f.Write(buf); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi tạo file Excel"})
-		return
-	}
-	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
-	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buf.Bytes())
+	sendExcel(c, f, filename)
 }
 
 // ExportCompareExcel — GET /api/reports/compare/export
 func ExportCompareExcel(c *gin.Context) {
-	now := time.Now()
-
-	currentFrom := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	currentTo := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
-
-	firstOfThisMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	previousFrom := firstOfThisMonth.AddDate(0, -1, 0)
-	previousTo := firstOfThisMonth.Add(-time.Second)
+	currentFrom, currentTo, previousFrom, previousTo := compareMonthRanges()
 
 	current, err := getPeriodSummary(currentFrom, currentTo)
 	if err != nil {
@@ -640,12 +584,6 @@ func ExportCompareExcel(c *gin.Context) {
 	f.SetCellValue(sheet, "C4", current.InvoiceCount)
 	f.SetCellValue(sheet, "D4", current.InvoiceCount-previous.InvoiceCount)
 
-	filename := fmt.Sprintf("so-sanh-%s.xlsx", now.Format("2006-01"))
-	buf := new(bytes.Buffer)
-	if err := f.Write(buf); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi tạo file Excel"})
-		return
-	}
-	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
-	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buf.Bytes())
+	filename := fmt.Sprintf("so-sanh-%s.xlsx", time.Now().Format("2006-01"))
+	sendExcel(c, f, filename)
 }
