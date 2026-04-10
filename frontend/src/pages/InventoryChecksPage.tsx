@@ -4,7 +4,8 @@ import { PlusOutlined, CheckOutlined, EditOutlined, EyeOutlined } from '@ant-des
 import api from '../services/api';
 import { InventoryCheck } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { PageHeader } from '../components/common';
+import { PageHeader, EmptyState } from '../components/common';
+import { formatDateTime, getErrorMessage } from '../utils/format';
 
 export default function InventoryChecksPage() {
   const { user } = useAuth();
@@ -30,8 +31,8 @@ export default function InventoryChecksPage() {
       await api.post('/inventory-checks');
       message.success('Đã tạo đợt kiểm kê');
       fetchChecks();
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err));
     }
   };
 
@@ -59,8 +60,8 @@ export default function InventoryChecksPage() {
       await api.put(`/inventory-checks/${detailCheck.id}/items`, { items: editItems });
       message.success('Đã lưu');
       showDetail(detailCheck.id);
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err));
     }
   };
 
@@ -70,8 +71,8 @@ export default function InventoryChecksPage() {
       message.success('Đã xác nhận kiểm kê — tồn kho đã điều chỉnh');
       fetchChecks();
       setDetailCheck(null);
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err));
     }
   };
 
@@ -82,10 +83,10 @@ export default function InventoryChecksPage() {
       title: 'TT', dataIndex: 'status', width: 110,
       render: (v: string) => <Tag color={v === 'completed' ? 'green' : 'blue'}>{v === 'completed' ? 'Hoàn thành' : 'Nháp'}</Tag>,
     },
-    { title: 'Ngày tạo', dataIndex: 'created_at', render: (v: string) => new Date(v).toLocaleString('vi-VN'), width: 160 },
+    { title: 'Ngày tạo', dataIndex: 'created_at', render: (v: string) => formatDateTime(v), width: 160 },
     {
       title: 'Hoàn thành', dataIndex: 'completed_at', width: 160,
-      render: (v: string | null) => v ? new Date(v).toLocaleString('vi-VN') : '—',
+      render: (v: string | null) => v ? formatDateTime(v) : '—',
     },
     {
       title: '', width: 80,
@@ -117,7 +118,7 @@ export default function InventoryChecksPage() {
         actionIcon={<PlusOutlined />}
         onAction={handleCreate}
       />
-      <Table dataSource={checks} columns={columns} rowKey="id" loading={loading} pagination={{ pageSize: 20 }} size="middle" />
+      <Table dataSource={checks} columns={columns} rowKey="id" loading={loading} pagination={{ pageSize: 20 }} size="middle" locale={{ emptyText: <EmptyState title="Chưa có đợt kiểm kê nào" /> }} />
 
       <Modal title={`Kiểm kê #${detailCheck?.id}`} open={!!detailCheck} onCancel={() => setDetailCheck(null)}
         width={800} footer={detailCheck?.status === 'draft' ? [

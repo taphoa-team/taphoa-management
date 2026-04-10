@@ -5,7 +5,7 @@ import api from '../services/api';
 import { ProductWithStock, Category, UnitConversion } from '../types';
 import type { PriceHistoryItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { formatVND, escapeHtml } from '../utils/format';
+import { formatVND, escapeHtml, inputNumberFormatter, formatDateTime, getErrorMessage } from '../utils/format';
 import { PageHeader, EmptyState } from '../components/common';
 import { PAGE_SIZE, DEBOUNCE_DELAY } from '../constants';
 
@@ -44,7 +44,7 @@ export default function ProductsPage() {
       if (categoryFilter) params.category_id = categoryFilter;
       const res = await api.get('/products', { params });
       setProducts(res.data || []);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error fetching products:', err);
       message.error('Lỗi tải sản phẩm');
     } finally {
@@ -56,7 +56,7 @@ export default function ProductsPage() {
     try {
       const res = await api.get('/categories');
       setCategories(res.data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error fetching categories:', err);
       message.error('Lỗi tải nhóm hàng');
     }
@@ -74,8 +74,8 @@ export default function ProductsPage() {
       await fetchCategories();
       // Auto select new category
       form.setFieldsValue({ category_id: res.data.id });
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi tạo nhóm hàng');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'Lỗi tạo nhóm hàng'));
     } finally {
       setCreatingCategory(false);
     }
@@ -120,9 +120,9 @@ export default function ProductsPage() {
       }
       setModalOpen(false);
       fetchProducts();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error saving product:', err);
-      message.error(err.response?.data?.error || 'Lỗi lưu sản phẩm');
+      message.error(getErrorMessage(err, 'Lỗi lưu sản phẩm'));
     } finally {
       setSubmitting(false);
     }
@@ -133,9 +133,9 @@ export default function ProductsPage() {
       await api.patch(`/products/${id}/deactivate`);
       message.success('Đã ngừng bán');
       fetchProducts();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error deactivating product:', err);
-      message.error(err.response?.data?.error || 'Lỗi ngừng bán sản phẩm');
+      message.error(getErrorMessage(err, 'Lỗi ngừng bán sản phẩm'));
     }
   };
 
@@ -161,7 +161,7 @@ export default function ProductsPage() {
     try {
       const res = await api.get(`/products/${productId}/conversions`);
       setConversions(res.data || []);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error fetching conversions:', err);
       setConversions([]);
     }
@@ -175,9 +175,9 @@ export default function ProductsPage() {
       convForm.resetFields();
       fetchConversions(editing.id);
       message.success('Đã thêm quy đổi');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error adding conversion:', err);
-      message.error(err.response?.data?.error || 'Lỗi thêm quy đổi');
+      message.error(getErrorMessage(err, 'Lỗi thêm quy đổi'));
     }
   };
 
@@ -186,9 +186,9 @@ export default function ProductsPage() {
       await api.delete(`/products/${productId}/conversions/${convId}`);
       fetchConversions(productId);
       message.success('Đã xóa quy đổi');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error deleting conversion:', err);
-      message.error(err.response?.data?.error || 'Lỗi xóa quy đổi');
+      message.error(getErrorMessage(err, 'Lỗi xóa quy đổi'));
     }
   };
 
@@ -410,7 +410,7 @@ export default function ProductsPage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <Form.Item name="sell_price" label="Giá bán (VNĐ)" rules={[{ required: true, message: 'Nhập giá' }]}>
-              <InputNumber min={1} style={{ width: '100%' }} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
+              <InputNumber min={1} style={{ width: '100%' }} formatter={inputNumberFormatter} />
             </Form.Item>
             <Form.Item name="min_quantity" label="Tồn kho tối thiểu">
               <InputNumber min={0} style={{ width: '100%' }} />
@@ -509,7 +509,7 @@ export default function ProductsPage() {
               title: 'Thời gian',
               dataIndex: 'created_at',
               width: 160,
-              render: (v: string) => new Date(v).toLocaleString('vi-VN'),
+              render: (v: string) => formatDateTime(v),
             },
             {
               title: 'Giá cũ',

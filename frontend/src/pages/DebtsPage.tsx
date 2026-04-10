@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Customer } from '../types';
 import { formatVND } from '../utils/format';
-import { PageHeader } from '../components/common';
+import { PageHeader, EmptyState } from '../components/common';
 
 export default function DebtsPage() {
   const navigate = useNavigate();
@@ -30,7 +30,7 @@ export default function DebtsPage() {
   return (
     <div>
       <PageHeader title="Công nợ khách hàng" />
-      <Table dataSource={customers} columns={columns} rowKey="id" loading={loading} pagination={{ pageSize: 20 }} size="middle" />
+      <Table dataSource={customers} columns={columns} rowKey="id" loading={loading} pagination={{ pageSize: 20 }} size="middle" locale={{ emptyText: <EmptyState title="Không có khách hàng nợ" /> }} />
     </div>
   );
 }

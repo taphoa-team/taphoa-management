@@ -5,6 +5,7 @@ import api from '../services/api';
 import { Supplier } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { PageHeader, EmptyState } from '../components/common';
+import { getErrorMessage } from '../utils/format';
 
 export default function SuppliersPage() {
   const { user } = useAuth();
@@ -52,8 +53,8 @@ export default function SuppliersPage() {
       }
       setModalOpen(false);
       fetchSuppliers();
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err));
     }
   };
 
@@ -62,8 +63,8 @@ export default function SuppliersPage() {
       await api.delete(`/suppliers/${id}`);
       message.success('Đã xóa');
       fetchSuppliers();
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Không xóa được');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'Không xóa được'));
     }
   };
 

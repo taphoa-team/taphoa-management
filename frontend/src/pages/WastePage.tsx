@@ -3,8 +3,8 @@ import { Table, Button, Modal, Form, Select, InputNumber, Input, message } from 
 import { PlusOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { WasteRecord, Product, ProductBatch } from '../types';
-import { formatVND } from '../utils/format';
-import { PageHeader } from '../components/common';
+import { formatVND, formatDate, getErrorMessage } from '../utils/format';
+import { PageHeader, EmptyState } from '../components/common';
 
 export default function WastePage() {
   const [records, setRecords] = useState<WasteRecord[]>([]);
@@ -46,8 +46,8 @@ export default function WastePage() {
       setModalOpen(false);
       form.resetFields();
       fetchRecords();
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err));
     }
   };
 
@@ -60,7 +60,7 @@ export default function WastePage() {
     { title: 'Lý do', dataIndex: 'reason', width: 100, render: (v: string) => reasonLabels[v] || v },
     { title: 'NV', dataIndex: ['user', 'name'], width: 120 },
     { title: 'Ghi chú', dataIndex: 'note', ellipsis: true },
-    { title: 'Ngày', dataIndex: 'created_at', render: (v: string) => new Date(v).toLocaleDateString('vi-VN'), width: 110 },
+    { title: 'Ngày', dataIndex: 'created_at', render: (v: string) => formatDate(v), width: 110 },
   ];
 
   return (
@@ -72,7 +72,8 @@ export default function WastePage() {
         onAction={() => { form.resetFields(); setBatches([]); setModalOpen(true); }}
       />
       <Table dataSource={records} columns={columns} rowKey="id" loading={loading}
-        pagination={{ current: page, pageSize: 20, onChange: setPage, showSizeChanger: false }} size="middle" />
+        pagination={{ current: page, pageSize: 20, onChange: setPage, showSizeChanger: false }} size="middle"
+        locale={{ emptyText: <EmptyState title="Chưa có phiếu hủy hàng nào" /> }} />
 
       <Modal title="Tạo phiếu xuất hủy" open={modalOpen} onOk={handleSubmit} onCancel={() => setModalOpen(false)} okText="Tạo" cancelText="Hủy">
         <Form form={form} layout="vertical">
@@ -83,7 +84,7 @@ export default function WastePage() {
           </Form.Item>
           <Form.Item name="batch_id" label="Lô hàng" rules={[{ required: true, message: 'Chọn lô' }]}>
             <Select placeholder="Chọn lô" options={batches.map((b) => ({
-              value: b.id, label: `Lô #${b.id} — SL: ${b.quantity} — Giá: ${formatVND(b.cost_price)}${b.expiry_date ? ` — HSD: ${new Date(b.expiry_date).toLocaleDateString('vi-VN')}` : ''}`,
+              value: b.id, label: `Lô #${b.id} — SL: ${b.quantity} — Giá: ${formatVND(b.cost_price)}${b.expiry_date ? ` — HSD: ${formatDate(b.expiry_date)}` : ''}`,
             }))} />
           </Form.Item>
           <Form.Item name="quantity" label="Số lượng hủy" rules={[{ required: true, message: 'Nhập SL' }]}>

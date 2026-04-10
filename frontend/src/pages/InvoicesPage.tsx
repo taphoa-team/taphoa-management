@@ -5,8 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Invoice } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { formatVND } from '../utils/format';
-import { PageHeader } from '../components/common';
+import { formatVND, formatDateTime, getErrorMessage } from '../utils/format';
+import { PageHeader, EmptyState } from '../components/common';
 
 export default function InvoicesPage() {
   const { user } = useAuth();
@@ -34,8 +34,8 @@ export default function InvoicesPage() {
       await api.patch(`/invoices/${id}/cancel`);
       message.success('Đã hủy đơn');
       fetchInvoices();
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Không hủy được');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'Không hủy được'));
     }
   };
 
@@ -51,7 +51,7 @@ export default function InvoicesPage() {
       title: 'Trạng thái', dataIndex: 'status', width: 110,
       render: (v: string) => <Tag color={v === 'completed' ? 'green' : 'red'}>{v === 'completed' ? 'Hoàn thành' : 'Đã hủy'}</Tag>,
     },
-    { title: 'Ngày', dataIndex: 'created_at', render: (v: string) => new Date(v).toLocaleString('vi-VN'), width: 160 },
+    { title: 'Ngày', dataIndex: 'created_at', render: (v: string) => formatDateTime(v), width: 160 },
     {
       title: 'Thao tác', width: 160,
       render: (_: any, r: Invoice) => (
@@ -74,7 +74,8 @@ export default function InvoicesPage() {
         <DatePicker placeholder="Lọc theo ngày" onChange={(d) => { setDate(d ? d.format('YYYY-MM-DD') : ''); setPage(1); }} />
       </Space>
       <Table dataSource={invoices} columns={columns} rowKey="id" loading={loading}
-        pagination={{ current: page, pageSize: 20, onChange: setPage, showSizeChanger: false }} size="middle" />
+        pagination={{ current: page, pageSize: 20, onChange: setPage, showSizeChanger: false }} size="middle"
+        locale={{ emptyText: <EmptyState title="Chưa có hóa đơn nào" /> }} />
     </div>
   );
 }

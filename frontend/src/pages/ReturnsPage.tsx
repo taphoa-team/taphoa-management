@@ -3,8 +3,8 @@ import { Table, Tag, Button, Modal, InputNumber, Input, message, Space, Typograp
 import { PlusOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { Return, Invoice, InvoiceItem } from '../types';
-import { formatVND } from '../utils/format';
-import { PageHeader } from '../components/common';
+import { formatVND, formatDateTime, getErrorMessage } from '../utils/format';
+import { PageHeader, EmptyState } from '../components/common';
 
 export default function ReturnsPage() {
   const [returns, setReturns] = useState<Return[]>([]);
@@ -86,8 +86,8 @@ export default function ReturnsPage() {
       setReason('');
       setReturnQtys({});
       fetchReturns();
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi tạo phiếu trả');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'Lỗi tạo phiếu trả'));
     } finally {
       setSubmitting(false);
     }
@@ -104,7 +104,7 @@ export default function ReturnsPage() {
     { title: 'Lý do', dataIndex: 'reason', ellipsis: true },
     { title: 'Hoàn tiền', dataIndex: 'total_refund', render: formatVND, align: 'right' as const, width: 130 },
     { title: 'TT', dataIndex: 'status', width: 100, render: (v: string) => <Tag color="green">{v}</Tag> },
-    { title: 'Ngày', dataIndex: 'created_at', render: (v: string) => new Date(v).toLocaleString('vi-VN'), width: 160 },
+    { title: 'Ngày', dataIndex: 'created_at', render: (v: string) => formatDateTime(v), width: 160 },
   ];
 
   return (
@@ -117,7 +117,8 @@ export default function ReturnsPage() {
       />
 
       <Table dataSource={returns} columns={columns} rowKey="id" loading={loading}
-        pagination={{ current: page, pageSize: 20, onChange: setPage, showSizeChanger: false }} size="middle" />
+        pagination={{ current: page, pageSize: 20, onChange: setPage, showSizeChanger: false }} size="middle"
+        locale={{ emptyText: <EmptyState title="Chưa có phiếu trả hàng nào" /> }} />
 
       <Modal
         title="Tạo phiếu trả hàng"
@@ -143,7 +144,7 @@ export default function ReturnsPage() {
         {invoice && (
           <>
             <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-              Đơn #{invoice.id} — {formatVND(invoice.final_total)} — {new Date(invoice.created_at).toLocaleString('vi-VN')}
+              Đơn #{invoice.id} — {formatVND(invoice.final_total)} — {formatDateTime(invoice.created_at)}
             </Typography.Text>
 
             <Table

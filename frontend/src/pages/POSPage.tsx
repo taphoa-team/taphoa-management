@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { ProductWithStock, Customer, Shift } from '../types';
-import { formatVND } from '../utils/format';
+import { formatVND, inputNumberFormatter, getErrorMessage } from '../utils/format';
 import { CASH_DENOMINATIONS } from '../constants';
 
 interface CartItem {
@@ -299,8 +299,8 @@ export default function POSPage() {
       }
 
       fetchProducts();
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi thanh toán');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'Lỗi thanh toán'));
     } finally {
       checkoutLoadingRef.current = false;
       setCheckoutLoading(false);
@@ -587,7 +587,7 @@ export default function POSPage() {
                         if ((v || 0) > maxAmount && user?.role !== 'admin') message.warning(`Chỉ được giảm tối đa ${maxPct}% (${formatVND(maxAmount)})`);
                       }
                     }}
-                    formatter={(v) => discountMode === 'percent' ? `${v}%` : `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + 'đ'}
+                    formatter={(v) => discountMode === 'percent' ? `${v}%` : inputNumberFormatter(v) + 'đ'}
                     parser={(v) => Number((v as string).replace(/[^\d]/g, ''))}
                     style={{ flex: 1 }}
                   />
@@ -635,7 +635,7 @@ export default function POSPage() {
                   min={0}
                   value={cashGiven}
                   onChange={(v) => setCashGiven(v || 0)}
-                  formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  formatter={inputNumberFormatter}
                   parser={(v) => Number((v as string).replace(/\D/g, ''))}
                   placeholder={subtotal > 0 ? `Mặc định: ${formatVND(finalTotal)}` : 'Đủ tiền'}
                   addonAfter="đ"

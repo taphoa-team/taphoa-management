@@ -4,7 +4,7 @@ import { PlusOutlined, EditOutlined, SearchOutlined, EyeOutlined } from '@ant-de
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Customer } from '../types';
-import { formatVND } from '../utils/format';
+import { formatVND, getErrorMessage } from '../utils/format';
 import { PageHeader, EmptyState } from '../components/common';
 import { PAGE_SIZE, DEBOUNCE_DELAY } from '../constants';
 
@@ -32,7 +32,7 @@ export default function CustomersPage() {
       if (search) params.search = search;
       const res = await api.get('/customers', { params });
       setCustomers(res.data || []);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error fetching customers:', err);
       message.error('Lỗi tải khách hàng');
     } finally {
@@ -57,9 +57,9 @@ export default function CustomersPage() {
       }
       setModalOpen(false);
       fetchCustomers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error saving customer:', err);
-      message.error(err.response?.data?.error || 'Lỗi lưu khách hàng');
+      message.error(getErrorMessage(err, 'Lỗi lưu khách hàng'));
     }
   };
 

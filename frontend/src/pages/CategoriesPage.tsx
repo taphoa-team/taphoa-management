@@ -5,6 +5,7 @@ import api from '../services/api';
 import { Category } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { PageHeader, EmptyState } from '../components/common';
+import { getErrorMessage } from '../utils/format';
 
 export default function CategoriesPage() {
   const { user } = useAuth();
@@ -52,8 +53,8 @@ export default function CategoriesPage() {
       }
       setModalOpen(false);
       fetchCategories();
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err));
     }
   };
 
@@ -62,8 +63,8 @@ export default function CategoriesPage() {
       await api.delete(`/categories/${id}`);
       message.success('Đã xóa');
       fetchCategories();
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Không xóa được');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'Không xóa được'));
     }
   };
 

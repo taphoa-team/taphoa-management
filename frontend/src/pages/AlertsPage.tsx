@@ -3,7 +3,7 @@ import { Tabs, Table, Tag, Select, Space, Button, message, Typography } from 'an
 import { AlertOutlined, WarningOutlined, MailOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { formatVND } from '../utils/format';
+import { formatVND, formatDate } from '../utils/format';
 import { PageHeader } from '../components/common';
 
 interface ExpiryItem {
@@ -83,7 +83,7 @@ export default function AlertsPage() {
       title: 'Hạn sử dụng',
       dataIndex: 'expiry_date',
       width: 120,
-      render: (v: string) => new Date(v).toLocaleDateString('vi-VN'),
+      render: (v: string) => formatDate(v),
     },
     {
       title: 'Còn lại',

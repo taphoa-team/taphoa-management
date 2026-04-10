@@ -4,7 +4,7 @@ import { SearchOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { InventoryItem } from '../types';
 import { formatVND } from '../utils/format';
-import { PageHeader } from '../components/common';
+import { PageHeader, EmptyState } from '../components/common';
 
 export default function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -51,7 +51,7 @@ export default function InventoryPage() {
       <PageHeader title="Tồn kho" />
       <Input prefix={<SearchOutlined />} placeholder="Tìm sản phẩm..." value={search}
         onChange={(e) => setSearch(e.target.value)} allowClear style={{ width: 280, marginBottom: 16 }} />
-      <Table dataSource={items} columns={columns} rowKey="id" loading={loading} pagination={{ pageSize: 50 }} size="middle" />
+      <Table dataSource={items} columns={columns} rowKey="id" loading={loading} pagination={{ pageSize: 50 }} size="middle" locale={{ emptyText: <EmptyState title="Chưa có sản phẩm trong kho" /> }} />
     </div>
   );
 }

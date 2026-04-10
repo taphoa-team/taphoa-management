@@ -3,8 +3,8 @@ import { Table, Button, Modal, Form, Select, InputNumber, Input, DatePicker, mes
 import { PlusOutlined, MinusCircleOutlined, EyeOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { PurchaseOrder, Supplier, Product } from '../types';
-import { formatVND } from '../utils/format';
-import { PageHeader } from '../components/common';
+import { formatVND, inputNumberFormatter, formatDate, getErrorMessage } from '../utils/format';
+import { PageHeader, EmptyState } from '../components/common';
 
 export default function PurchaseOrdersPage() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
@@ -53,8 +53,8 @@ export default function PurchaseOrdersPage() {
       await fetchSuppliers();
       // Auto-select NCC vừa tạo
       form.setFieldValue('supplier_id', res.data.id);
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi tạo NCC');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'Lỗi tạo NCC'));
     } finally {
       setCreatingSupplier(false);
     }
@@ -79,8 +79,8 @@ export default function PurchaseOrdersPage() {
       setModalOpen(false);
       form.resetFields();
       fetchOrders();
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err));
     }
   };
 
@@ -101,7 +101,7 @@ export default function PurchaseOrdersPage() {
       title: 'TT', dataIndex: 'status', width: 100,
       render: (v: string) => <Tag color={v === 'completed' ? 'green' : 'red'}>{v}</Tag>,
     },
-    { title: 'Ngày', dataIndex: 'created_at', render: (v: string) => new Date(v).toLocaleDateString('vi-VN'), width: 110 },
+    { title: 'Ngày', dataIndex: 'created_at', render: (v: string) => formatDate(v), width: 110 },
     {
       title: '', width: 80,
       render: (_: any, r: PurchaseOrder) => (
@@ -119,7 +119,8 @@ export default function PurchaseOrdersPage() {
         onAction={() => { form.resetFields(); setModalOpen(true); }}
       />
       <Table dataSource={orders} columns={columns} rowKey="id" loading={loading}
-        pagination={{ current: page, pageSize: 20, onChange: setPage, showSizeChanger: false }} size="middle" />
+        pagination={{ current: page, pageSize: 20, onChange: setPage, showSizeChanger: false }} size="middle"
+        locale={{ emptyText: <EmptyState title="Chưa có phiếu nhập hàng" description="Tạo phiếu nhập hàng đầu tiên" /> }} />
 
       {/* Modal tạo đơn nhập */}
       <Modal title="Tạo đơn nhập hàng" open={modalOpen} onOk={handleSubmit} onCancel={() => setModalOpen(false)}
@@ -146,7 +147,7 @@ export default function PurchaseOrdersPage() {
               />
             </Form.Item>
             <Form.Item name="paid" label="Đã thanh toán (VNĐ)"><InputNumber min={0} style={{ width: '100%' }}
-              formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} /></Form.Item>
+              formatter={inputNumberFormatter} /></Form.Item>
           </div>
           <Form.Item name="note" label="Ghi chú"><Input.TextArea rows={1} /></Form.Item>
           <Typography.Text strong>Danh sách sản phẩm nhập:</Typography.Text>
@@ -166,7 +167,7 @@ export default function PurchaseOrdersPage() {
                     <Form.Item {...rest} name={[name, 'unit']}><Input placeholder="ĐVT" style={{ width: 80 }} /></Form.Item>
                     <Form.Item {...rest} name={[name, 'cost_price']} rules={[{ required: true, message: 'Giá' }]}>
                       <InputNumber placeholder="Giá nhập" min={0} style={{ width: 120 }}
-                        formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
+                        formatter={inputNumberFormatter} />
                     </Form.Item>
                     <Form.Item {...rest} name={[name, 'expiry_date']}><DatePicker placeholder="HSD" /></Form.Item>
                     <MinusCircleOutlined onClick={() => remove(name)} style={{ color: 'red', marginTop: 8 }} />

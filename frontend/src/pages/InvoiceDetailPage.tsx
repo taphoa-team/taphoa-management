@@ -4,7 +4,7 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Invoice } from '../types';
-import { formatVND } from '../utils/format';
+import { formatVND, formatDateTime } from '../utils/format';
 
 export default function InvoiceDetailPage() {
   const { id } = useParams();
@@ -30,7 +30,7 @@ export default function InvoiceDetailPage() {
       <Descriptions bordered size="small" column={2} style={{ marginBottom: 24 }}>
         <Descriptions.Item label="Nhân viên">{invoice.user?.name}</Descriptions.Item>
         <Descriptions.Item label="Khách hàng">{invoice.customer?.name || 'Khách lẻ'}</Descriptions.Item>
-        <Descriptions.Item label="Ngày">{new Date(invoice.created_at).toLocaleString('vi-VN')}</Descriptions.Item>
+        <Descriptions.Item label="Ngày">{formatDateTime(invoice.created_at)}</Descriptions.Item>
         <Descriptions.Item label="Trạng thái">
           <Tag color={invoice.status === 'completed' ? 'green' : 'red'}>{invoice.status}</Tag>
         </Descriptions.Item>

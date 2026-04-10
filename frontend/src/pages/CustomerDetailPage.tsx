@@ -4,7 +4,7 @@ import { ArrowLeftOutlined, DollarOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Customer, Invoice, Debt } from '../types';
-import { formatVND } from '../utils/format';
+import { formatVND, inputNumberFormatter, formatDate, getErrorMessage } from '../utils/format';
 
 export default function CustomerDetailPage() {
   const { id } = useParams();
@@ -41,8 +41,8 @@ export default function CustomerDetailPage() {
       setPayModal(false);
       form.resetFields();
       fetchData();
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err));
     }
   };
 
@@ -72,7 +72,7 @@ export default function CustomerDetailPage() {
       <Table dataSource={invoices} rowKey="id" size="small" pagination={false} style={{ marginBottom: 24 }}
         columns={[
           { title: 'Mã', dataIndex: 'id', width: 60 },
-          { title: 'Ngày', dataIndex: 'created_at', render: (v: string) => new Date(v).toLocaleDateString('vi-VN') },
+          { title: 'Ngày', dataIndex: 'created_at', render: (v: string) => formatDate(v) },
           { title: 'Tổng tiền', dataIndex: 'final_total', render: formatVND, align: 'right' as const },
           { title: 'Thanh toán', dataIndex: 'payment_method' },
           { title: 'Trạng thái', dataIndex: 'status', render: (v: string) => <Tag color={v === 'completed' ? 'green' : 'red'}>{v}</Tag> },
@@ -82,7 +82,7 @@ export default function CustomerDetailPage() {
       <Typography.Title level={5}>Lịch sử công nợ (50 gần nhất)</Typography.Title>
       <Table dataSource={debts} rowKey="id" size="small" pagination={false}
         columns={[
-          { title: 'Ngày', dataIndex: 'created_at', render: (v: string) => new Date(v).toLocaleDateString('vi-VN') },
+          { title: 'Ngày', dataIndex: 'created_at', render: (v: string) => formatDate(v) },
           { title: 'Loại', dataIndex: 'type', render: (v: string) => <Tag color={v === 'debt' ? 'red' : 'green'}>{v === 'debt' ? 'Nợ' : 'Trả'}</Tag> },
           { title: 'Số tiền', dataIndex: 'amount', render: formatVND, align: 'right' as const },
           { title: 'Ghi chú', dataIndex: 'note' },
@@ -94,7 +94,7 @@ export default function CustomerDetailPage() {
           <Form.Item name="amount" label={`Số tiền (tối đa ${formatVND(customer.total_debt)})`}
             rules={[{ required: true, message: 'Nhập số tiền' }]}>
             <InputNumber min={1} max={customer.total_debt} style={{ width: '100%' }}
-              formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
+              formatter={inputNumberFormatter} />
           </Form.Item>
           <Form.Item name="note" label="Ghi chú"><Input.TextArea rows={2} /></Form.Item>
         </Form>

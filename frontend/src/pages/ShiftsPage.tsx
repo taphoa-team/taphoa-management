@@ -3,8 +3,8 @@ import { Table, Button, Modal, Form, InputNumber, Input, message, Tag, Space, De
 import { PlayCircleOutlined, StopOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { Shift } from '../types';
-import { formatVND } from '../utils/format';
-import { PageHeader } from '../components/common';
+import { formatVND, inputNumberFormatter, formatDateTime, getErrorMessage } from '../utils/format';
+import { PageHeader, EmptyState } from '../components/common';
 
 export default function ShiftsPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -44,8 +44,8 @@ export default function ShiftsPage() {
       openForm.resetFields();
       fetchShifts();
       fetchCurrentShift();
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err));
     }
   };
 
@@ -77,18 +77,18 @@ export default function ShiftsPage() {
           </Descriptions>
         ),
       });
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Lỗi');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err));
     }
   };
 
   const columns = [
     { title: 'ID', dataIndex: 'id', width: 60 },
     { title: 'Nhân viên', dataIndex: ['user', 'name'], width: 130 },
-    { title: 'Mở ca', dataIndex: 'opened_at', render: (v: string) => new Date(v).toLocaleString('vi-VN') },
+    { title: 'Mở ca', dataIndex: 'opened_at', render: (v: string) => formatDateTime(v) },
     {
       title: 'Đóng ca', dataIndex: 'closed_at',
-      render: (v: string | null) => v ? new Date(v).toLocaleString('vi-VN') : <Tag color="blue">Đang mở</Tag>,
+      render: (v: string | null) => v ? formatDateTime(v) : <Tag color="blue">Đang mở</Tag>,
     },
     { title: 'Doanh thu', dataIndex: 'total_sales', render: formatVND, align: 'right' as const, width: 130 },
     { title: 'Số đơn', dataIndex: 'total_invoices', width: 80, align: 'right' as const },
@@ -123,12 +123,13 @@ export default function ShiftsPage() {
           <Descriptions.Item label="Doanh thu">{formatVND(currentShift.total_sales)}</Descriptions.Item>
         </Descriptions>
       )}
-      <Table dataSource={shifts} columns={columns} rowKey="id" loading={loading} pagination={{ pageSize: 20 }} size="middle" />
+      <Table dataSource={shifts} columns={columns} rowKey="id" loading={loading} pagination={{ pageSize: 20 }} size="middle"
+        locale={{ emptyText: <EmptyState title="Chưa có ca làm việc nào" /> }} />
 
       <Modal title="Mở ca mới" open={openModal} onOk={handleOpen} onCancel={() => setOpenModal(false)} okText="Mở ca" cancelText="Hủy">
         <Form form={openForm} layout="vertical">
           <Form.Item name="opening_cash" label="Tiền đầu ca (VNĐ)" initialValue={0}>
-            <InputNumber min={0} style={{ width: '100%' }} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
+            <InputNumber min={0} style={{ width: '100%' }} formatter={inputNumberFormatter} />
           </Form.Item>
         </Form>
       </Modal>
@@ -136,7 +137,7 @@ export default function ShiftsPage() {
       <Modal title="Đóng ca" open={closeModal} onOk={handleClose} onCancel={() => setCloseModal(false)} okText="Đóng ca" cancelText="Hủy">
         <Form form={closeForm} layout="vertical">
           <Form.Item name="closing_cash" label="Tiền mặt thực tế cuối ca (VNĐ)" rules={[{ required: true, message: 'Nhập số tiền' }]}>
-            <InputNumber min={0} style={{ width: '100%' }} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
+            <InputNumber min={0} style={{ width: '100%' }} formatter={inputNumberFormatter} />
           </Form.Item>
           <Form.Item name="note" label="Ghi chú"><Input.TextArea rows={2} /></Form.Item>
         </Form>

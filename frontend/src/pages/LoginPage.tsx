@@ -4,6 +4,7 @@ import { PhoneOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { APP_NAME } from '../constants';
+import { getErrorMessage } from '../utils/format';
 
 export default function LoginPage() {
   const { login, user } = useAuth();
@@ -22,8 +23,8 @@ export default function LoginPage() {
       await login(values.phone, values.password);
       message.success('Đăng nhập thành công');
       navigate('/');
-    } catch (err: any) {
-      message.error(err.response?.data?.error || 'Đăng nhập thất bại');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'Đăng nhập thất bại'));
     } finally {
       setLoading(false);
     }
