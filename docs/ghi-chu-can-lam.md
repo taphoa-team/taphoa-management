@@ -73,10 +73,10 @@
 - [x] Fix printBarcode gọi print() 2 lần
 - [x] Xóa showAction={false} thừa ở 5 pages
 
-### Chưa fix (low priority, làm sau):
-- [ ] EmptyState chỉ có ở 4/14 trang — thêm cho các trang còn lại
-- [ ] Currency formatter regex trùng lặp 8 chỗ — tạo util chung
-- [ ] Date formatting trùng lặp 17 chỗ — tạo formatDate/formatDateTime
-- [ ] paymentLabel trùng lặp và không nhất quán giữa InvoicesPage và InvoiceDetailPage
-- [ ] Debounce delay hardcode 300 ở 2 file thay vì dùng DEBOUNCE_DELAY constant
-- [ ] err: any ở 22 catch blocks — dùng unknown + helper function
+### Đã fix trong branch fix-ui-ux:
+- [x] EmptyState — thêm cho 12/20 pages (8 pages đặc biệt không cần: Login, Dashboard, Reports, POS, detail pages)
+- [x] Currency formatter — tạo `formatVND()` util, dùng chung hết
+- [x] Date formatting — tạo `formatDate()`/`formatDateTime()` util, dùng chung hết
+- [x] paymentLabel — tạo `PAYMENT_LABEL`/`PAYMENT_LABEL_SHORT` constants
+- [x] Debounce delay — dùng `DEBOUNCE_DELAY` constant thay hardcode
+- [x] err: any — đổi hết sang `unknown` + `getErrorMessage()` helper
