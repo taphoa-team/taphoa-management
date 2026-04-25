@@ -88,6 +88,8 @@ const theme = {
     Table: {
       borderRadius: 8,
       headerBg: '#f0fdfa', // Nền header bảng màu teal nhạt
+      headerColor: '#374151', // Gray 700 - chữ header đậm hơn
+      fontSize: 14,
     },
     Input: {
       borderRadius: 8,

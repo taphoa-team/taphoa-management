@@ -22,6 +22,7 @@ import {
   Divider,
   Popconfirm,
 } from 'antd';
+import JsBarcode from 'jsbarcode';
 import React, { useEffect, useState } from 'react';
 
 import { PageHeader, EmptyState } from '../components/common';
@@ -193,16 +194,31 @@ export default function ProductsPage() {
     }
   };
 
-  // --- In barcode ---
-  // Sử dụng hidden iframe thay vì document.write để tránh XSS và pop-up blocker
+  // --- In tem ---
+  const generateBarcodeSvg = (code: string) => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    try {
+      JsBarcode(svg, code, {
+        format: 'CODE128',
+        width: 1.5,
+        height: 30,
+        displayValue: true,
+        fontSize: 10,
+        margin: 0,
+        font: 'monospace',
+      });
+      return svg.outerHTML;
+    } catch {
+      return `<div style="font-family:monospace;font-size:12px;letter-spacing:2px">${escapeHtml(code)}</div>`;
+    }
+  };
+
   const printBarcode = (product: ProductWithStock) => {
+    const barcodeValue = product.barcode || product.sku;
+    const barcodeSvg = generateBarcodeSvg(barcodeValue);
+
     const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
     document.body.appendChild(iframe);
 
     const doc = iframe.contentWindow?.document;
@@ -214,16 +230,54 @@ export default function ProductsPage() {
     const html = `
       <html><head><title>Tem ${escapeHtml(product.sku)}</title>
       <style>
-        body { font-family: monospace; text-align: center; padding: 20px; }
-        .sku { font-size: 24px; letter-spacing: 4px; margin: 10px 0; }
-        .name { font-size: 14px; }
-        .price { font-size: 18px; font-weight: bold; margin-top: 8px; }
-        @media print { body { padding: 5px; } }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @page { size: 50mm 30mm; margin: 0; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; }
+        .label {
+          width: 50mm;
+          height: 30mm;
+          padding: 2mm 3mm;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .store-name {
+          font-size: 8px;
+          font-weight: 700;
+          color: #0d9488;
+          text-transform: uppercase;
+          letter-spacing: 1.5px;
+        }
+        .product-name {
+          font-size: 9px;
+          font-weight: 500;
+          text-align: center;
+          line-height: 1.2;
+          max-height: 2.4em;
+          overflow: hidden;
+          width: 100%;
+        }
+        .barcode-area {
+          display: flex;
+          justify-content: center;
+        }
+        .barcode-area svg { max-width: 44mm; }
+        .price {
+          font-size: 14px;
+          font-weight: 800;
+          letter-spacing: -0.3px;
+        }
+        @media print {
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
       </style></head><body>
-        <div class="name">${escapeHtml(product.name)}</div>
-        <div class="sku">${escapeHtml(product.sku)}</div>
-        ${product.barcode ? `<div class="sku">${escapeHtml(product.barcode)}</div>` : ''}
-        <div class="price">${formatVND(product.sell_price)}</div>
+        <div class="label">
+          <div class="store-name">Family Mart</div>
+          <div class="product-name">${escapeHtml(product.name)}</div>
+          <div class="barcode-area">${barcodeSvg}</div>
+          <div class="price">${formatVND(product.sell_price)}</div>
+        </div>
       </body></html>
     `;
 
@@ -231,7 +285,6 @@ export default function ProductsPage() {
     doc.write(html);
     doc.close();
 
-    // Đợi load xong rồi in (dùng flag tránh gọi print() 2 lần)
     let printed = false;
     const doPrint = () => {
       if (printed) return;
@@ -244,7 +297,6 @@ export default function ProductsPage() {
       }, 1000);
     };
     iframe.onload = doPrint;
-    // Fallback nếu onload không trigger
     setTimeout(doPrint, 500);
   };
 

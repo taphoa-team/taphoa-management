@@ -1,6 +1,6 @@
 # Ghi chú các việc cần làm
 
-> Cập nhật: 07/04/2026
+> Cập nhật: 25/04/2026
 
 ---
 
@@ -80,3 +80,10 @@
 - [x] paymentLabel — tạo `PAYMENT_LABEL`/`PAYMENT_LABEL_SHORT` constants
 - [x] Debounce delay — dùng `DEBOUNCE_DELAY` constant thay hardcode
 - [x] err: any — đổi hết sang `unknown` + `getErrorMessage()` helper
+- [x] Migrate CRA → Vite (faster build, HMR)
+- [x] Tách AuthContext thành AuthContext.ts + AuthProvider.tsx + useAuth.ts
+- [x] Extract hooks thành file riêng (useApi, useDebounce, usePagination, useToggle, v.v.)
+- [x] Thêm shared utils (formatVND, formatDate, memo, escapeHtml)
+- [x] Tạo CreatePurchaseOrderPage riêng
+- [x] Thêm knowledge-graph.md (bản đồ codebase)
+- [x] LoginPage — redesign UI: glass-morphism card, gradient background, animations
