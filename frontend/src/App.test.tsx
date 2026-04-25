@@ -1,9 +1,10 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import viVN from 'antd/locale/vi_VN';
-import { AuthProvider } from './contexts/AuthContext';
+import React from 'react';
+import { MemoryRouter } from 'react-router-dom';
+
+import { AuthProvider } from './contexts/AuthProvider';
 import LoginPage from './pages/LoginPage';
 
 // Mock API calls
@@ -25,7 +26,7 @@ test('renders login page', () => {
       </AuthProvider>
     </ConfigProvider>
   );
-  
+
   // Kiểm tra có nút đăng nhập
   const loginButton = screen.getByText(/đăng nhập/i);
   expect(loginButton).toBeInTheDocument();

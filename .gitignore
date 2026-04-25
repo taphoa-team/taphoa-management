@@ -33,7 +33,9 @@ taphoa-server
 .logs/
 
 # Claude Code
-.claude/mcp.json
-.claude/scheduled_tasks.lock
-.claude/worktrees
+.claude/
+.mcp.json
 .worktrees/
+
+# Tools
+tools/
