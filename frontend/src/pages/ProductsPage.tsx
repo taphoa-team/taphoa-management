@@ -1,88 +1,117 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Button, Modal, Form, Input, InputNumber, Select, Switch, message, Space, Tag, Divider, Popconfirm } from 'antd';
-import { PlusOutlined, EditOutlined, StopOutlined, SearchOutlined, PrinterOutlined, DeleteOutlined, HistoryOutlined } from '@ant-design/icons';
-import api from '../services/api';
-import { ProductWithStock, Category, UnitConversion } from '../types';
-import type { PriceHistoryItem } from '../types';
-import { useAuth } from '../contexts/AuthContext';
-import { formatVND, escapeHtml, inputNumberFormatter, formatDateTime, getErrorMessage } from '../utils/format';
+import {
+  PlusOutlined,
+  EditOutlined,
+  StopOutlined,
+  SearchOutlined,
+  PrinterOutlined,
+  DeleteOutlined,
+  HistoryOutlined,
+} from '@ant-design/icons';
+import {
+  Table,
+  Button,
+  Modal,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Switch,
+  message,
+  Space,
+  Tag,
+  Divider,
+  Popconfirm,
+} from 'antd';
+import React, { useEffect, useState } from 'react';
+
 import { PageHeader, EmptyState } from '../components/common';
 import { PAGE_SIZE, DEBOUNCE_DELAY } from '../constants';
+import { useAuth } from '../contexts/useAuth';
+import {
+  useProducts,
+  useCategories,
+  useCreateCategory,
+  usePriceHistory,
+  useProductConversions,
+  useCreateProduct,
+  useUpdateProduct,
+  useDeactivateProduct,
+  useCreateConversion,
+  useDeleteConversion,
+} from '../hooks';
+import type { ProductWithStock, UnitConversion } from '../types';
+import {
+  formatVND,
+  escapeHtml,
+  inputNumberFormatter,
+  formatDateTime,
+  getErrorMessage,
+} from '../utils/format';
 
 export default function ProductsPage() {
   const { user } = useAuth();
-  const [products, setProducts] = useState<ProductWithStock[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<ProductWithStock | null>(null);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<number | undefined>();
   const [page, setPage] = useState(1);
-  const [submitting, setSubmitting] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [categoryForm] = Form.useForm();
-  const [creatingCategory, setCreatingCategory] = useState(false);
   const [form] = Form.useForm();
   const [priceHistoryOpen, setPriceHistoryOpen] = useState(false);
-  const [priceHistory, setPriceHistory] = useState<PriceHistoryItem[]>([]);
-  const [priceHistoryLoading, setPriceHistoryLoading] = useState(false);
+  const [priceHistoryProductId, setPriceHistoryProductId] = useState(0);
   const [priceHistoryProduct, setPriceHistoryProduct] = useState<string>('');
+  const [convForm] = Form.useForm();
 
   // Debounce search input
   useEffect(() => {
-    const timer = setTimeout(() => { setSearch(searchInput); setPage(1); }, DEBOUNCE_DELAY);
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, DEBOUNCE_DELAY);
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: any = { page, limit: PAGE_SIZE };
-      if (search) params.search = search;
-      if (categoryFilter) params.category_id = categoryFilter;
-      const res = await api.get('/products', { params });
-      setProducts(res.data || []);
-    } catch (err: unknown) {
-      console.error('Error fetching products:', err);
-      message.error('Lỗi tải sản phẩm');
-    } finally {
-      setLoading(false);
-    }
-  }, [page, search, categoryFilter]);
+  // ─── React Query hooks ──────────────────────────────────────────────────────
 
-  const fetchCategories = async () => {
-    try {
-      const res = await api.get('/categories');
-      setCategories(res.data);
-    } catch (err: unknown) {
-      console.error('Error fetching categories:', err);
-      message.error('Lỗi tải nhóm hàng');
-    }
-  };
+  const { data: products = [], isLoading: loading } = useProducts({
+    page,
+    limit: PAGE_SIZE,
+    search: search || undefined,
+    category_id: categoryFilter || undefined,
+  });
+
+  const { data: categories = [] } = useCategories();
+
+  const createCategoryMutation = useCreateCategory();
+  const createProductMutation = useCreateProduct();
+  const updateProductMutation = useUpdateProduct();
+  const deactivateProductMutation = useDeactivateProduct();
+  const createConversionMutation = useCreateConversion();
+  const deleteConversionMutation = useDeleteConversion();
+
+  const { data: priceHistory = [], isLoading: priceHistoryLoading } =
+    usePriceHistory(priceHistoryProductId);
+
+  const { data: conversions = [] } = useProductConversions(editing?.id || 0);
+
+  // ─── Handlers ───────────────────────────────────────────────────────────────
 
   const handleCreateCategory = async () => {
-    if (creatingCategory) return;
+    if (createCategoryMutation.isPending) return;
     const values = await categoryForm.validateFields();
-    setCreatingCategory(true);
     try {
-      const res = await api.post('/categories', values);
+      const res = await createCategoryMutation.mutateAsync(values);
       message.success('Đã tạo nhóm hàng');
       setCategoryModalOpen(false);
       categoryForm.resetFields();
-      await fetchCategories();
       // Auto select new category
       form.setFieldsValue({ category_id: res.data.id });
     } catch (err: unknown) {
       message.error(getErrorMessage(err, 'Lỗi tạo nhóm hàng'));
-    } finally {
-      setCreatingCategory(false);
     }
   };
-
-  useEffect(() => { fetchCategories(); }, []);
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   const openCreate = () => {
     setEditing(null);
@@ -102,78 +131,51 @@ export default function ProductsPage() {
       unit: p.unit,
       barcode: p.barcode,
     });
-    fetchConversions(p.id);
     setModalOpen(true);
   };
 
+  const isSaving = createProductMutation.isPending || updateProductMutation.isPending;
+
   const handleSubmit = async () => {
-    if (submitting) return;
+    if (isSaving) return;
     const values = await form.validateFields();
-    setSubmitting(true);
     try {
       if (editing) {
-        await api.put(`/products/${editing.id}`, values);
+        await updateProductMutation.mutateAsync({ id: editing.id, data: values });
         message.success('Đã cập nhật');
       } else {
-        await api.post('/products', values);
+        await createProductMutation.mutateAsync(values);
         message.success('Đã thêm sản phẩm');
       }
       setModalOpen(false);
-      fetchProducts();
     } catch (err: unknown) {
       console.error('Error saving product:', err);
       message.error(getErrorMessage(err, 'Lỗi lưu sản phẩm'));
-    } finally {
-      setSubmitting(false);
     }
   };
 
   const handleDeactivate = async (id: number) => {
     try {
-      await api.patch(`/products/${id}/deactivate`);
+      await deactivateProductMutation.mutateAsync(id);
       message.success('Đã ngừng bán');
-      fetchProducts();
     } catch (err: unknown) {
       console.error('Error deactivating product:', err);
       message.error(getErrorMessage(err, 'Lỗi ngừng bán sản phẩm'));
     }
   };
 
-  const fetchPriceHistory = async (productId: number, productName: string) => {
+  const handleShowPriceHistory = (productId: number, productName: string) => {
+    setPriceHistoryProductId(productId);
     setPriceHistoryProduct(productName);
     setPriceHistoryOpen(true);
-    setPriceHistoryLoading(true);
-    try {
-      const res = await api.get(`/products/${productId}/price-history`);
-      setPriceHistory(res.data || []);
-    } catch {
-      message.error('Lỗi tải lịch sử giá');
-    } finally {
-      setPriceHistoryLoading(false);
-    }
-  };
-
-  // --- Quy đổi đơn vị ---
-  const [conversions, setConversions] = useState<UnitConversion[]>([]);
-  const [convForm] = Form.useForm();
-
-  const fetchConversions = async (productId: number) => {
-    try {
-      const res = await api.get(`/products/${productId}/conversions`);
-      setConversions(res.data || []);
-    } catch (err: unknown) {
-      console.error('Error fetching conversions:', err);
-      setConversions([]);
-    }
   };
 
   const addConversion = async () => {
     if (!editing) return;
     try {
       const values = await convForm.validateFields();
-      await api.post(`/products/${editing.id}/conversions`, values);
+      await createConversionMutation.mutateAsync({ productId: editing.id, data: values });
       convForm.resetFields();
-      fetchConversions(editing.id);
       message.success('Đã thêm quy đổi');
     } catch (err: unknown) {
       console.error('Error adding conversion:', err);
@@ -181,10 +183,9 @@ export default function ProductsPage() {
     }
   };
 
-  const deleteConversion = async (productId: number, convId: number) => {
+  const handleDeleteConversion = async (productId: number, convId: number) => {
     try {
-      await api.delete(`/products/${productId}/conversions/${convId}`);
-      fetchConversions(productId);
+      await deleteConversionMutation.mutateAsync({ productId, conversionId: convId });
       message.success('Đã xóa quy đổi');
     } catch (err: unknown) {
       console.error('Error deleting conversion:', err);
@@ -222,7 +223,7 @@ export default function ProductsPage() {
         <div class="name">${escapeHtml(product.name)}</div>
         <div class="sku">${escapeHtml(product.sku)}</div>
         ${product.barcode ? `<div class="sku">${escapeHtml(product.barcode)}</div>` : ''}
-        <div class="price">${product.sell_price.toLocaleString('vi-VN')}đ</div>
+        <div class="price">${formatVND(product.sell_price)}</div>
       </body></html>
     `;
 
@@ -266,9 +267,9 @@ export default function ProductsPage() {
             type="text"
             size="small"
             icon={<HistoryOutlined />}
-            onClick={(e) => {
+            onClick={e => {
               e.stopPropagation();
-              fetchPriceHistory(record.id, record.name);
+              handleShowPriceHistory(record.id, record.name);
             }}
             style={{ color: '#94a3b8' }}
           />
@@ -290,10 +291,14 @@ export default function ProductsPage() {
     {
       title: 'Thao tác',
       width: 240,
-      render: (_: any, record: ProductWithStock) => (
+      render: (_: unknown, record: ProductWithStock) => (
         <Space>
-          <Button icon={<EditOutlined />} size="small" onClick={() => openEdit(record)}>Sửa</Button>
-          <Button icon={<PrinterOutlined />} size="small" onClick={() => printBarcode(record)}>Tem</Button>
+          <Button icon={<EditOutlined />} size="small" onClick={() => openEdit(record)}>
+            Sửa
+          </Button>
+          <Button icon={<PrinterOutlined />} size="small" onClick={() => printBarcode(record)}>
+            Tem
+          </Button>
           {user?.role === 'admin' && (
             <Popconfirm
               title="Ngừng bán sản phẩm?"
@@ -327,17 +332,20 @@ export default function ProductsPage() {
           prefix={<SearchOutlined />}
           placeholder="Tìm tên, SKU, barcode..."
           value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
+          onChange={e => setSearchInput(e.target.value)}
           allowClear
           style={{ width: 280 }}
         />
         <Select
           placeholder="Lọc nhóm hàng"
           value={categoryFilter}
-          onChange={(v) => { setCategoryFilter(v); setPage(1); }}
+          onChange={v => {
+            setCategoryFilter(v);
+            setPage(1);
+          }}
           allowClear
           style={{ width: 180 }}
-          options={categories.map((c) => ({ value: c.id, label: c.name }))}
+          options={categories.map(c => ({ value: c.id, label: c.name }))}
         />
       </Space>
 
@@ -374,18 +382,26 @@ export default function ProductsPage() {
         okText={editing ? 'Cập nhật' : 'Thêm'}
         cancelText="Hủy"
         width={600}
-        confirmLoading={submitting}
+        confirmLoading={isSaving}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="name" label="Tên sản phẩm" rules={[{ required: true, message: 'Nhập tên' }]}>
+          <Form.Item
+            name="name"
+            label="Tên sản phẩm"
+            rules={[{ required: true, message: 'Nhập tên' }]}
+          >
             <Input placeholder="VD: Mì Hảo Hảo" />
           </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Form.Item name="category_id" label="Nhóm hàng" rules={[{ required: true, message: 'Chọn nhóm' }]}>
+            <Form.Item
+              name="category_id"
+              label="Nhóm hàng"
+              rules={[{ required: true, message: 'Chọn nhóm' }]}
+            >
               <Select
                 placeholder="Chọn nhóm"
-                options={categories.map((c) => ({ value: c.id, label: c.name }))}
-                dropdownRender={(menu) => (
+                options={categories.map(c => ({ value: c.id, label: c.name }))}
+                dropdownRender={menu => (
                   <>
                     {menu}
                     <Divider style={{ margin: '8px 0' }} />
@@ -404,12 +420,20 @@ export default function ProductsPage() {
                 )}
               />
             </Form.Item>
-            <Form.Item name="unit" label="Đơn vị tính" rules={[{ required: true, message: 'Nhập ĐVT' }]}>
+            <Form.Item
+              name="unit"
+              label="Đơn vị tính"
+              rules={[{ required: true, message: 'Nhập ĐVT' }]}
+            >
               <Input placeholder="VD: gói, lon, kg" />
             </Form.Item>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Form.Item name="sell_price" label="Giá bán (VNĐ)" rules={[{ required: true, message: 'Nhập giá' }]}>
+            <Form.Item
+              name="sell_price"
+              label="Giá bán (VNĐ)"
+              rules={[{ required: true, message: 'Nhập giá' }]}
+            >
               <InputNumber min={1} style={{ width: '100%' }} formatter={inputNumberFormatter} />
             </Form.Item>
             <Form.Item name="min_quantity" label="Tồn kho tối thiểu">
@@ -444,8 +468,11 @@ export default function ProductsPage() {
                     {
                       title: '',
                       width: 50,
-                      render: (_: any, record: UnitConversion) => (
-                        <Popconfirm title="Xóa quy đổi này?" onConfirm={() => deleteConversion(editing.id, record.id)}>
+                      render: (_: unknown, record: UnitConversion) => (
+                        <Popconfirm
+                          title="Xóa quy đổi này?"
+                          onConfirm={() => handleDeleteConversion(editing.id, record.id)}
+                        >
                           <Button size="small" icon={<DeleteOutlined />} danger type="text" />
                         </Popconfirm>
                       ),
@@ -453,18 +480,36 @@ export default function ProductsPage() {
                   ]}
                 />
               )}
-              <Form form={convForm} layout="inline" style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <Form.Item name="from_unit" rules={[{ required: true, message: 'Nhập' }]} style={{ marginBottom: 0, flex: 1 }}>
+              <Form
+                form={convForm}
+                layout="inline"
+                style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'flex-start' }}
+              >
+                <Form.Item
+                  name="from_unit"
+                  rules={[{ required: true, message: 'Nhập' }]}
+                  style={{ marginBottom: 0, flex: 1 }}
+                >
                   <Input placeholder="thùng" style={{ width: '100%' }} />
                 </Form.Item>
                 <span style={{ lineHeight: '32px', flexShrink: 0 }}>=</span>
-                <Form.Item name="conversion_rate" rules={[{ required: true, message: 'Nhập' }]} style={{ marginBottom: 0, width: 80 }}>
+                <Form.Item
+                  name="conversion_rate"
+                  rules={[{ required: true, message: 'Nhập' }]}
+                  style={{ marginBottom: 0, width: 80 }}
+                >
                   <InputNumber min={1} placeholder="24" style={{ width: '100%' }} />
                 </Form.Item>
-                <Form.Item name="to_unit" rules={[{ required: true, message: 'Nhập' }]} style={{ marginBottom: 0, flex: 1 }}>
+                <Form.Item
+                  name="to_unit"
+                  rules={[{ required: true, message: 'Nhập' }]}
+                  style={{ marginBottom: 0, flex: 1 }}
+                >
                   <Input placeholder="chai" style={{ width: '100%' }} />
                 </Form.Item>
-                <Button icon={<PlusOutlined />} onClick={addConversion} style={{ flexShrink: 0 }}>Thêm</Button>
+                <Button icon={<PlusOutlined />} onClick={addConversion} style={{ flexShrink: 0 }}>
+                  Thêm
+                </Button>
               </Form>
             </>
           )}
@@ -479,10 +524,14 @@ export default function ProductsPage() {
         onCancel={() => setCategoryModalOpen(false)}
         okText="Tạo"
         cancelText="Hủy"
-        confirmLoading={creatingCategory}
+        confirmLoading={createCategoryMutation.isPending}
       >
         <Form form={categoryForm} layout="vertical">
-          <Form.Item name="name" label="Tên nhóm hàng" rules={[{ required: true, message: 'Nhập tên nhóm' }]}>
+          <Form.Item
+            name="name"
+            label="Tên nhóm hàng"
+            rules={[{ required: true, message: 'Nhập tên nhóm' }]}
+          >
             <Input placeholder="VD: Đồ uống, Bánh kẹo..." />
           </Form.Item>
           <Form.Item name="description" label="Mô tả">

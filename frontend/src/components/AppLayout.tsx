@@ -1,5 +1,3 @@
-import React, { useMemo } from 'react';
-import { Layout, Menu, Button, theme, Typography } from 'antd';
 import {
   ShoppingCartOutlined,
   AppstoreOutlined,
@@ -17,12 +15,16 @@ import {
   AlertOutlined,
   BarChartOutlined,
 } from '@ant-design/icons';
+import { Layout, Menu, Button, theme, Typography } from 'antd';
+import type { MenuProps } from 'antd';
+import React, { useMemo } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+
 import { APP_NAME } from '../constants';
+import { useAuth } from '../contexts/useAuth';
+
 import { Breadcrumbs } from './common';
 import ErrorBoundary from './ErrorBoundary';
-import type { MenuProps } from 'antd';
 
 const { Header, Content } = Layout;
 
@@ -100,7 +102,9 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
-  const { token: { colorBgContainer, borderRadiusLG } } = theme.useToken();
+  const {
+    token: { colorBgContainer, borderRadiusLG },
+  } = theme.useToken();
 
   const handleLogout = () => {
     logout();
@@ -114,7 +118,7 @@ export default function AppLayout() {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {/* 🎨 Header với gradient Teal - đồng bộ theme mới */}
-      <Header 
+      <Header
         style={{
           padding: '0 24px',
           background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%)', // Gradient Teal
@@ -128,30 +132,34 @@ export default function AppLayout() {
         }}
       >
         {/* Logo với style mới */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-        }}>
-          <div style={{
-            width: 36,
-            height: 36,
-            background: 'rgba(255,255,255,0.2)',
-            borderRadius: 10,
+        <div
+          style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 20,
-            fontWeight: 'bold',
-            color: '#fff',
-          }}>
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              background: 'rgba(255,255,255,0.2)',
+              borderRadius: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20,
+              fontWeight: 'bold',
+              color: '#fff',
+            }}
+          >
             F
           </div>
-          <Typography.Title 
-            level={4} 
-            style={{ 
-              color: '#fff', 
-              margin: 0, 
+          <Typography.Title
+            level={4}
+            style={{
+              color: '#fff',
+              margin: 0,
               whiteSpace: 'nowrap',
               fontWeight: 600,
               letterSpacing: 0.5,
@@ -187,11 +195,13 @@ export default function AppLayout() {
 
         {/* User info + logout */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, whiteSpace: 'nowrap' }}>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-          }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+            }}
+          >
             <Typography.Text style={{ color: '#fff', fontWeight: 500, fontSize: 14 }}>
               {user?.name}
             </Typography.Text>
@@ -199,12 +209,12 @@ export default function AppLayout() {
               {user?.role === 'admin' ? 'Quản lý' : 'Nhân viên'}
             </Typography.Text>
           </div>
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             ghost
-            icon={<LogoutOutlined />} 
+            icon={<LogoutOutlined />}
             onClick={handleLogout}
-            style={{ 
+            style={{
               color: '#fff',
               borderColor: 'rgba(255,255,255,0.3)',
               borderRadius: 8,
@@ -215,14 +225,16 @@ export default function AppLayout() {
         </div>
       </Header>
 
-      <Content style={{ 
-        margin: 24, 
-        padding: 24, 
-        background: colorBgContainer, 
-        borderRadius: borderRadiusLG, 
-        minHeight: 'calc(100vh - 112px)',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.05)', // Đổ bóng nhẹ cho content
-      }}>
+      <Content
+        style={{
+          margin: 24,
+          padding: 24,
+          background: colorBgContainer,
+          borderRadius: borderRadiusLG,
+          minHeight: 'calc(100vh - 112px)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)', // Đổ bóng nhẹ cho content
+        }}
+      >
         <Breadcrumbs />
         <ErrorBoundary>
           <Outlet />

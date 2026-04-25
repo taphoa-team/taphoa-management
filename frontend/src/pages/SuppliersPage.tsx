@@ -1,33 +1,22 @@
-import React, { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Input, message, Popconfirm, Space } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import api from '../services/api';
-import { Supplier } from '../types';
-import { useAuth } from '../contexts/AuthContext';
+import { Table, Button, Modal, Form, Input, message, Popconfirm, Space } from 'antd';
+import React, { useState } from 'react';
+
 import { PageHeader, EmptyState } from '../components/common';
+import { useAuth } from '../contexts/useAuth';
+import { useSuppliers, useCreateSupplier, useUpdateSupplier, useDeleteSupplier } from '../hooks';
+import type { Supplier } from '../types';
 import { getErrorMessage } from '../utils/format';
 
 export default function SuppliersPage() {
   const { user } = useAuth();
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { data: suppliers = [], isLoading } = useSuppliers();
+  const createSupplier = useCreateSupplier();
+  const updateSupplier = useUpdateSupplier();
+  const deleteSupplier = useDeleteSupplier();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [form] = Form.useForm();
-
-  const fetchSuppliers = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/suppliers');
-      setSuppliers(res.data);
-    } catch {
-      message.error('Lỗi tải nhà cung cấp');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchSuppliers(); }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -45,14 +34,13 @@ export default function SuppliersPage() {
     const values = await form.validateFields();
     try {
       if (editing) {
-        await api.put(`/suppliers/${editing.id}`, values);
+        await updateSupplier.mutateAsync({ id: editing.id, data: values });
         message.success('Đã cập nhật');
       } else {
-        await api.post('/suppliers', values);
+        await createSupplier.mutateAsync(values);
         message.success('Đã thêm NCC');
       }
       setModalOpen(false);
-      fetchSuppliers();
     } catch (err: unknown) {
       message.error(getErrorMessage(err));
     }
@@ -60,9 +48,8 @@ export default function SuppliersPage() {
 
   const handleDelete = async (id: number) => {
     try {
-      await api.delete(`/suppliers/${id}`);
+      await deleteSupplier.mutateAsync(id);
       message.success('Đã xóa');
-      fetchSuppliers();
     } catch (err: unknown) {
       message.error(getErrorMessage(err, 'Không xóa được'));
     }
@@ -77,12 +64,16 @@ export default function SuppliersPage() {
     {
       title: 'Thao tác',
       width: 160,
-      render: (_: any, record: Supplier) => (
+      render: (_: unknown, record: Supplier) => (
         <Space>
-          <Button icon={<EditOutlined />} size="small" onClick={() => openEdit(record)}>Sửa</Button>
+          <Button icon={<EditOutlined />} size="small" onClick={() => openEdit(record)}>
+            Sửa
+          </Button>
           {user?.role === 'admin' && (
             <Popconfirm title="Xóa NCC này?" onConfirm={() => handleDelete(record.id)}>
-              <Button icon={<DeleteOutlined />} size="small" danger>Xóa</Button>
+              <Button icon={<DeleteOutlined />} size="small" danger>
+                Xóa
+              </Button>
             </Popconfirm>
           )}
         </Space>
@@ -102,7 +93,7 @@ export default function SuppliersPage() {
         dataSource={suppliers}
         columns={columns}
         rowKey="id"
-        loading={loading}
+        loading={isLoading}
         pagination={{ pageSize: 20 }}
         size="middle"
         locale={{

@@ -1,6 +1,7 @@
-import React from 'react';
 import { Typography, Button, Space } from 'antd';
 import type { ButtonProps } from 'antd/es/button';
+import { memo } from 'react';
+
 import { pageHeaderStyle, pageTitleStyle } from '../../styles/common';
 
 interface PageHeaderProps {
@@ -17,8 +18,10 @@ interface PageHeaderProps {
  * Component PageHeader dùng chung cho các trang quản lý
  * Đồng nhất layout: [Tiêu đề] + [Nút primary action]
  * Nếu không truyền onAction → tự ẩn nút action
+ *
+ * 🚀 Đã wrap với React.memo để tối ưu re-render
  */
-export const PageHeader: React.FC<PageHeaderProps> = ({
+export const PageHeader: React.FC<PageHeaderProps> = memo(function PageHeader({
   title,
   subtitle,
   actionText = 'Thêm mới',
@@ -26,7 +29,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   onAction,
   actionProps,
   extra,
-}) => {
+}) {
   return (
     <div style={pageHeaderStyle}>
       <div>
@@ -49,6 +52,6 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       </Space>
     </div>
   );
-};
+});
 
 export default PageHeader;

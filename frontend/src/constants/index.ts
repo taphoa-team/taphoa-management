@@ -9,7 +9,6 @@ export const DEFAULT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 // Debounce
 export const DEBOUNCE_DELAY = 300;
-export const SEARCH_DEBOUNCE_DELAY = 300;
 
 // POS
 export const HELD_ORDERS_KEY = 'taphoa_held_orders';
@@ -44,6 +43,21 @@ export const PAYMENT_METHODS = [
   { value: 'mixed', label: 'Tiền mặt + CK' },
   { value: 'debt', label: 'Ghi nợ' },
 ] as const;
+
+// Payment labels (short + full)
+export const PAYMENT_LABEL: Record<string, string> = {
+  cash: 'Tiền mặt',
+  transfer: 'Chuyển khoản',
+  mixed: 'TM + CK',
+  debt: 'Nợ',
+};
+
+export const PAYMENT_LABEL_SHORT: Record<string, string> = {
+  cash: 'Tiền mặt',
+  transfer: 'CK',
+  mixed: 'TM+CK',
+  debt: 'Nợ',
+};
 
 // Product status
 export const PRODUCT_STATUS = {

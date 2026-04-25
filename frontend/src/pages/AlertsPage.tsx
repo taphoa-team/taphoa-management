@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Tabs, Table, Tag, Select, Space, Button, message, Typography } from 'antd';
 import { AlertOutlined, WarningOutlined, MailOutlined } from '@ant-design/icons';
+import { Tabs, Table, Tag, Select, Space, Button, message, Typography } from 'antd';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
-import { formatVND, formatDate } from '../utils/format';
+
 import { PageHeader } from '../components/common';
+import { useExpiryAlerts, useLowStockAlerts, useSendAlertEmail } from '../hooks';
+import { formatVND, formatDate } from '../utils/format';
 
 interface ExpiryItem {
   id: number;
@@ -29,48 +30,17 @@ interface LowStockItem {
 export default function AlertsPage() {
   const navigate = useNavigate();
   const [expiryDays, setExpiryDays] = useState(7);
-  const [expiryItems, setExpiryItems] = useState<ExpiryItem[]>([]);
-  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
-  const [loadingExpiry, setLoadingExpiry] = useState(false);
-  const [loadingStock, setLoadingStock] = useState(false);
-  const [sendingEmail, setSendingEmail] = useState(false);
 
-  const fetchExpiry = useCallback(async () => {
-    setLoadingExpiry(true);
-    try {
-      const res = await api.get('/alerts/expiry', { params: { days: expiryDays, limit: 100 } });
-      setExpiryItems(res.data || []);
-    } catch {
-      message.error('Lỗi tải dữ liệu');
-    } finally {
-      setLoadingExpiry(false);
-    }
-  }, [expiryDays]);
-
-  const fetchLowStock = useCallback(async () => {
-    setLoadingStock(true);
-    try {
-      const res = await api.get('/alerts/low-stock');
-      setLowStockItems(res.data || []);
-    } catch {
-      message.error('Lỗi tải dữ liệu');
-    } finally {
-      setLoadingStock(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchExpiry(); }, [fetchExpiry]);
-  useEffect(() => { fetchLowStock(); }, [fetchLowStock]);
+  const { data: expiryItems = [], isLoading: loadingExpiry } = useExpiryAlerts(expiryDays, 100);
+  const { data: lowStockItems = [], isLoading: loadingStock } = useLowStockAlerts();
+  const sendEmailMutation = useSendAlertEmail();
 
   const handleSendEmail = async () => {
-    setSendingEmail(true);
     try {
-      await api.post('/alerts/send-email');
+      await sendEmailMutation.mutateAsync();
       message.success('Đã gửi email cảnh báo');
     } catch {
       message.error('Gửi email thất bại. Kiểm tra cấu hình SMTP.');
-    } finally {
-      setSendingEmail(false);
     }
   };
 
@@ -78,7 +48,13 @@ export default function AlertsPage() {
     { title: 'Sản phẩm', dataIndex: ['product', 'name'], ellipsis: true },
     { title: 'SKU', dataIndex: ['product', 'sku'], width: 100 },
     { title: 'Số lượng', dataIndex: 'quantity', width: 90, align: 'right' as const },
-    { title: 'Giá vốn', dataIndex: 'cost_price', width: 100, align: 'right' as const, render: formatVND },
+    {
+      title: 'Giá vốn',
+      dataIndex: 'cost_price',
+      width: 100,
+      align: 'right' as const,
+      render: formatVND,
+    },
     {
       title: 'Hạn sử dụng',
       dataIndex: 'expiry_date',
@@ -99,8 +75,10 @@ export default function AlertsPage() {
     {
       title: '',
       width: 80,
-      render: (_: any, record: ExpiryItem) => (
-        <Button size="small" danger onClick={() => navigate('/waste')}>Hủy</Button>
+      render: (_: unknown, _record: ExpiryItem) => (
+        <Button size="small" danger onClick={() => navigate('/waste')}>
+          Hủy
+        </Button>
       ),
     },
   ];
@@ -123,7 +101,9 @@ export default function AlertsPage() {
       title: '',
       width: 80,
       render: () => (
-        <Button size="small" type="primary" onClick={() => navigate('/purchase-orders')}>Nhập</Button>
+        <Button size="small" type="primary" onClick={() => navigate('/purchase-orders')}>
+          Nhập
+        </Button>
       ),
     },
   ];
@@ -132,13 +112,15 @@ export default function AlertsPage() {
     <div>
       <PageHeader
         title="Cảnh báo"
-        extra={<Button
-          icon={<MailOutlined />}
-          onClick={handleSendEmail}
-          loading={sendingEmail}
-        >
-          Gửi email cảnh báo
-        </Button>}
+        extra={
+          <Button
+            icon={<MailOutlined />}
+            onClick={handleSendEmail}
+            loading={sendEmailMutation.isPending}
+          >
+            Gửi email cảnh báo
+          </Button>
+        }
       />
 
       <Tabs
@@ -149,7 +131,11 @@ export default function AlertsPage() {
             label: (
               <span>
                 <AlertOutlined /> Sắp hết hạn
-                {expiryItems.length > 0 && <Tag color="red" style={{ marginLeft: 8 }}>{expiryItems.length}</Tag>}
+                {expiryItems.length > 0 && (
+                  <Tag color="red" style={{ marginLeft: 8 }}>
+                    {expiryItems.length}
+                  </Tag>
+                )}
               </span>
             ),
             children: (
@@ -185,7 +171,11 @@ export default function AlertsPage() {
             label: (
               <span>
                 <WarningOutlined /> Sắp hết kho
-                {lowStockItems.length > 0 && <Tag color="orange" style={{ marginLeft: 8 }}>{lowStockItems.length}</Tag>}
+                {lowStockItems.length > 0 && (
+                  <Tag color="orange" style={{ marginLeft: 8 }}>
+                    {lowStockItems.length}
+                  </Tag>
+                )}
               </span>
             ),
             children: (

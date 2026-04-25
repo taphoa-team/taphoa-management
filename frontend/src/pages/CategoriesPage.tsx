@@ -1,33 +1,22 @@
-import React, { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Input, message, Popconfirm, Space } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import api from '../services/api';
-import { Category } from '../types';
-import { useAuth } from '../contexts/AuthContext';
+import { Table, Button, Modal, Form, Input, message, Popconfirm, Space } from 'antd';
+import React, { useState } from 'react';
+
 import { PageHeader, EmptyState } from '../components/common';
+import { useAuth } from '../contexts/useAuth';
+import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from '../hooks';
+import type { Category } from '../types';
 import { getErrorMessage } from '../utils/format';
 
 export default function CategoriesPage() {
   const { user } = useAuth();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { data: categories = [], isLoading } = useCategories();
+  const createCategory = useCreateCategory();
+  const updateCategory = useUpdateCategory();
+  const deleteCategory = useDeleteCategory();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form] = Form.useForm();
-
-  const fetchCategories = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/categories');
-      setCategories(res.data);
-    } catch {
-      message.error('Lỗi tải nhóm hàng');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchCategories(); }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -45,14 +34,13 @@ export default function CategoriesPage() {
     const values = await form.validateFields();
     try {
       if (editing) {
-        await api.put(`/categories/${editing.id}`, values);
+        await updateCategory.mutateAsync({ id: editing.id, data: values });
         message.success('Đã cập nhật');
       } else {
-        await api.post('/categories', values);
+        await createCategory.mutateAsync(values);
         message.success('Đã thêm nhóm hàng');
       }
       setModalOpen(false);
-      fetchCategories();
     } catch (err: unknown) {
       message.error(getErrorMessage(err));
     }
@@ -60,9 +48,8 @@ export default function CategoriesPage() {
 
   const handleDelete = async (id: number) => {
     try {
-      await api.delete(`/categories/${id}`);
+      await deleteCategory.mutateAsync(id);
       message.success('Đã xóa');
-      fetchCategories();
     } catch (err: unknown) {
       message.error(getErrorMessage(err, 'Không xóa được'));
     }
@@ -74,12 +61,16 @@ export default function CategoriesPage() {
     {
       title: 'Thao tác',
       width: 160,
-      render: (_: any, record: Category) => (
+      render: (_: unknown, record: Category) => (
         <Space>
-          <Button icon={<EditOutlined />} size="small" onClick={() => openEdit(record)}>Sửa</Button>
+          <Button icon={<EditOutlined />} size="small" onClick={() => openEdit(record)}>
+            Sửa
+          </Button>
           {user?.role === 'admin' && (
             <Popconfirm title="Xóa nhóm hàng này?" onConfirm={() => handleDelete(record.id)}>
-              <Button icon={<DeleteOutlined />} size="small" danger>Xóa</Button>
+              <Button icon={<DeleteOutlined />} size="small" danger>
+                Xóa
+              </Button>
             </Popconfirm>
           )}
         </Space>
@@ -99,7 +90,7 @@ export default function CategoriesPage() {
         dataSource={categories}
         columns={columns}
         rowKey="id"
-        loading={loading}
+        loading={isLoading}
         pagination={false}
         size="middle"
         locale={{
@@ -123,7 +114,11 @@ export default function CategoriesPage() {
         cancelText="Hủy"
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="name" label="Tên nhóm" rules={[{ required: true, message: 'Nhập tên nhóm hàng' }]}>
+          <Form.Item
+            name="name"
+            label="Tên nhóm"
+            rules={[{ required: true, message: 'Nhập tên nhóm hàng' }]}
+          >
             <Input placeholder="VD: Đồ uống, Bánh kẹo..." />
           </Form.Item>
         </Form>

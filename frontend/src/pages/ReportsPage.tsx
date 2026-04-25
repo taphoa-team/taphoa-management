@@ -1,27 +1,53 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Card, Tabs, message, Segmented, DatePicker, Row, Col, Statistic, Table, Typography, Space, Button } from 'antd';
 import {
-  DollarOutlined, ShoppingCartOutlined, RiseOutlined,
-  PercentageOutlined, DownloadOutlined, FireOutlined,
+  DollarOutlined,
+  ShoppingCartOutlined,
+  RiseOutlined,
+  PercentageOutlined,
+  DownloadOutlined,
+  FireOutlined,
 } from '@ant-design/icons';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  AreaChart, Area, Legend,
-} from 'recharts';
+  Card,
+  Tabs,
+  message,
+  Segmented,
+  DatePicker,
+  Row,
+  Col,
+  Statistic,
+  Table,
+  Typography,
+  Space,
+  Button,
+} from 'antd';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import api from '../services/api';
-import { formatVND } from '../utils/format';
+import React, { useState, useCallback } from 'react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  Legend,
+} from 'recharts';
+
 import { PageHeader } from '../components/common';
-import type {
-  RevenueReport, ProfitDataPoint, TopProductItem, CompareReport,
-} from '../types';
+import { useRevenueReport, useProfitReport, useCompareReport, useTopProducts } from '../hooks';
+import api from '../services/api';
+import type { TopProductItem } from '../types';
+import { formatVND } from '../utils/format';
 
 const { RangePicker } = DatePicker;
 type QuickRange = 'today' | 'week' | 'month' | 'custom';
 
 function downloadExcel(url: string) {
-  api.get(url, { responseType: 'blob' })
+  api
+    .get(url, { responseType: 'blob' })
     .then(res => {
       const disposition = res.headers['content-disposition'] || '';
       const match = disposition.match(/filename="?(.+?)"?$/);
@@ -39,10 +65,14 @@ function downloadExcel(url: string) {
 function getDateRange(quick: QuickRange): [Dayjs, Dayjs] {
   const today = dayjs();
   switch (quick) {
-    case 'today': return [today, today];
-    case 'week': return [today.startOf('week'), today];
-    case 'month': return [today.startOf('month'), today];
-    default: return [today, today];
+    case 'today':
+      return [today, today];
+    case 'week':
+      return [today.startOf('week'), today];
+    case 'month':
+      return [today.startOf('month'), today];
+    default:
+      return [today, today];
   }
 }
 
@@ -50,7 +80,7 @@ const vndFormatter = (value: unknown) => formatVND(typeof value === 'number' ? v
 const formatChartDate = (dateStr: string) => dayjs(dateStr).format('DD/MM');
 const yAxisFormatter = (v: unknown) => {
   const n = typeof v === 'number' ? v : 0;
-  return n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000)}K` : `${n}`;
+  return n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${n / 1000}K` : `${n}`;
 };
 
 // --- Shared hook for date range filter ---
@@ -80,7 +110,13 @@ function useDateRangeFilter(defaultQuick: QuickRange = 'month') {
 
 // --- Shared DateRangeControls component ---
 
-function DateRangeControls({ quick, dateRange, handleQuickChange, handleRangeChange, quickOptions }: {
+function DateRangeControls({
+  quick,
+  dateRange,
+  handleQuickChange,
+  handleRangeChange,
+  quickOptions,
+}: {
   quick: QuickRange;
   dateRange: [Dayjs, Dayjs];
   handleQuickChange: (val: string | number) => void;
@@ -112,43 +148,19 @@ function DateRangeControls({ quick, dateRange, handleQuickChange, handleRangeCha
 
 function RevenueTab() {
   const { quick, dateRange, handleQuickChange, handleRangeChange } = useDateRangeFilter('month');
-  const [revenue, setRevenue] = useState<RevenueReport | null>(null);
-  const [profit, setProfit] = useState<ProfitDataPoint[]>([]);
-  const [loading, setLoading] = useState(false);
 
-  const fetchData = useCallback(async (from: Dayjs, to: Dayjs) => {
-    setLoading(true);
-    const params = {
-      from: from.format('YYYY-MM-DD'),
-      to: to.format('YYYY-MM-DD'),
-    };
-    const [revenueRes, profitRes] = await Promise.allSettled([
-      api.get<RevenueReport>('/reports/revenue', { params }),
-      api.get<ProfitDataPoint[]>('/reports/profit', { params }),
-    ]);
-    if (revenueRes.status === 'fulfilled') {
-      setRevenue(revenueRes.value.data);
-    } else {
-      message.error('Không thể tải dữ liệu doanh thu');
-    }
-    if (profitRes.status === 'fulfilled') {
-      setProfit(profitRes.value.data);
-    } else {
-      message.error('Không thể tải dữ liệu lợi nhuận');
-    }
-    setLoading(false);
-  }, []);
+  const fromStr = dateRange[0].format('YYYY-MM-DD');
+  const toStr = dateRange[1].format('YYYY-MM-DD');
+  const { data: revenue, isLoading: loadingRevenue } = useRevenueReport(fromStr, toStr);
+  const { data: profit = [], isLoading: loadingProfit } = useProfitReport(fromStr, toStr);
+  const loading = loadingRevenue || loadingProfit;
 
-  useEffect(() => {
-    fetchData(dateRange[0], dateRange[1]);
-  }, [dateRange, fetchData]);
-
-  const barData = (revenue?.daily ?? []).map((d) => ({
+  const barData = (revenue?.daily ?? []).map(d => ({
     date: formatChartDate(d.date),
     'Doanh thu': d.revenue,
   }));
 
-  const areaData = profit.map((d) => ({
+  const areaData = profit.map(d => ({
     date: formatChartDate(d.date),
     'Lợi nhuận': d.profit,
   }));
@@ -166,7 +178,11 @@ function RevenueTab() {
           />
           <Button
             icon={<DownloadOutlined />}
-            onClick={() => downloadExcel(`/reports/revenue/export?from=${dateRange[0].format('YYYY-MM-DD')}&to=${dateRange[1].format('YYYY-MM-DD')}`)}
+            onClick={() =>
+              downloadExcel(
+                `/reports/revenue/export?from=${dateRange[0].format('YYYY-MM-DD')}&to=${dateRange[1].format('YYYY-MM-DD')}`
+              )
+            }
           >
             Xuất Excel
           </Button>
@@ -180,7 +196,7 @@ function RevenueTab() {
             <Statistic
               title="Doanh thu"
               value={revenue?.total_revenue ?? 0}
-              formatter={(v) => formatVND(v as number)}
+              formatter={v => formatVND(v as number)}
               valueStyle={{ color: '#0d9488', fontSize: 20 }}
               prefix={<DollarOutlined />}
             />
@@ -191,7 +207,7 @@ function RevenueTab() {
             <Statistic
               title="Giá vốn"
               value={revenue?.total_cogs ?? 0}
-              formatter={(v) => formatVND(v as number)}
+              formatter={v => formatVND(v as number)}
               valueStyle={{ color: '#6b7280', fontSize: 20 }}
               prefix={<ShoppingCartOutlined />}
             />
@@ -202,7 +218,7 @@ function RevenueTab() {
             <Statistic
               title="Lợi nhuận"
               value={revenue?.total_profit ?? 0}
-              formatter={(v) => formatVND(v as number)}
+              formatter={v => formatVND(v as number)}
               valueStyle={{ color: '#22c55e', fontSize: 20 }}
               prefix={<RiseOutlined />}
             />
@@ -223,7 +239,7 @@ function RevenueTab() {
             <Statistic
               title="Tổng giảm giá"
               value={revenue?.total_discount ?? 0}
-              formatter={(v) => formatVND(v as number)}
+              formatter={v => formatVND(v as number)}
               valueStyle={{ color: '#f59e0b', fontSize: 20 }}
               prefix={<PercentageOutlined />}
             />
@@ -239,7 +255,12 @@ function RevenueTab() {
             <XAxis dataKey="date" />
             <YAxis tickFormatter={yAxisFormatter} />
             <Tooltip formatter={vndFormatter} />
-            <Bar dataKey="Doanh thu" fill="#0d9488" radius={[4, 4, 0, 0]} label={{ position: 'top', formatter: yAxisFormatter, fontSize: 11 }} />
+            <Bar
+              dataKey="Doanh thu"
+              fill="#0d9488"
+              radius={[4, 4, 0, 0]}
+              label={{ position: 'top', formatter: yAxisFormatter, fontSize: 11 }}
+            />
           </BarChart>
         </ResponsiveContainer>
       </Card>
@@ -267,43 +288,28 @@ function RevenueTab() {
   );
 }
 
+// ─── Shared components ──────────────────────────────────────────────────────
+
+function ChangeTag({ pct }: { pct: number }) {
+  const isPos = pct >= 0;
+  return (
+    <Typography.Text style={{ color: isPos ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
+      {isPos ? `+${pct}%↑` : `${pct}%↓`}
+    </Typography.Text>
+  );
+}
+
 // ─── Tab 2: CompareTab ────────────────────────────────────────────────────────
 
 function CompareTab() {
-  const [data, setData] = useState<CompareReport | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get<CompareReport>('/reports/compare');
-      setData(res.data);
-    } catch {
-      message.error('Không thể tải dữ liệu so sánh');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const { data, isLoading: loading } = useCompareReport();
 
   const pctChange = (curr: number, prev: number): number => {
     if (prev === 0) return 0;
     return Math.round(((curr - prev) / prev) * 100);
   };
 
-  const ChangeTag: React.FC<{ pct: number }> = ({ pct }) => {
-    const isPos = pct >= 0;
-    return (
-      <Typography.Text style={{ color: isPos ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
-        {isPos ? `+${pct}%↑` : `${pct}%↓`}
-      </Typography.Text>
-    );
-  };
-
-  const barData = (data?.weekly ?? []).map((w) => ({
+  const barData = (data?.weekly ?? []).map(w => ({
     Tuần: `Tuần ${w.week}`,
     'Kỳ trước': w.previous_revenue,
     'Kỳ này': w.current_revenue,
@@ -339,7 +345,9 @@ function CompareTab() {
               <Typography.Text type="secondary">
                 {data?.previous.invoice_count ?? 0} → {data?.current.invoice_count ?? 0}
               </Typography.Text>
-              <ChangeTag pct={pctChange(data?.current.invoice_count ?? 0, data?.previous.invoice_count ?? 0)} />
+              <ChangeTag
+                pct={pctChange(data?.current.invoice_count ?? 0, data?.previous.invoice_count ?? 0)}
+              />
             </Space>
           </Card>
         </Col>
@@ -347,7 +355,10 @@ function CompareTab() {
 
       {/* Export button */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <Button icon={<DownloadOutlined />} onClick={() => downloadExcel('/reports/compare/export')}>
+        <Button
+          icon={<DownloadOutlined />}
+          onClick={() => downloadExcel('/reports/compare/export')}
+        >
           Xuất Excel
         </Button>
       </div>
@@ -375,31 +386,10 @@ function CompareTab() {
 function TopProductsTab() {
   const [sortMode, setSortMode] = useState<'desc' | 'asc'>('desc');
   const { quick, dateRange, handleQuickChange, handleRangeChange } = useDateRangeFilter('month');
-  const [data, setData] = useState<TopProductItem[]>([]);
-  const [loading, setLoading] = useState(false);
 
-  const fetchData = useCallback(async (from: Dayjs, to: Dayjs, sort: 'desc' | 'asc') => {
-    setLoading(true);
-    try {
-      const res = await api.get<TopProductItem[]>('/reports/top-products', {
-        params: {
-          from: from.format('YYYY-MM-DD'),
-          to: to.format('YYYY-MM-DD'),
-          limit: 10,
-          sort,
-        },
-      });
-      setData(res.data);
-    } catch {
-      message.error('Không thể tải top sản phẩm');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData(dateRange[0], dateRange[1], sortMode);
-  }, [dateRange, sortMode, fetchData]);
+  const fromStr = dateRange[0].format('YYYY-MM-DD');
+  const toStr = dateRange[1].format('YYYY-MM-DD');
+  const { data = [], isLoading: loading } = useTopProducts(fromStr, toStr, sortMode);
 
   const rankColors: Record<number, string> = { 1: '#facc15', 2: '#9ca3af', 3: '#f97316' };
 
@@ -457,7 +447,7 @@ function TopProductsTab() {
           <Space wrap>
             <Segmented
               value={sortMode}
-              onChange={(v) => setSortMode(v as 'desc' | 'asc')}
+              onChange={v => setSortMode(v as 'desc' | 'asc')}
               options={[
                 { label: 'Bán chạy', value: 'desc' },
                 { label: 'Bán ế', value: 'asc' },
@@ -477,7 +467,11 @@ function TopProductsTab() {
           </Space>
           <Button
             icon={<DownloadOutlined />}
-            onClick={() => downloadExcel(`/reports/top-products/export?from=${dateRange[0].format('YYYY-MM-DD')}&to=${dateRange[1].format('YYYY-MM-DD')}&sort=${sortMode}`)}
+            onClick={() =>
+              downloadExcel(
+                `/reports/top-products/export?from=${dateRange[0].format('YYYY-MM-DD')}&to=${dateRange[1].format('YYYY-MM-DD')}&sort=${sortMode}`
+              )
+            }
           >
             Xuất Excel
           </Button>
@@ -511,17 +505,29 @@ export default function ReportsPage() {
         items={[
           {
             key: 'revenue',
-            label: <span><DollarOutlined /> Doanh thu</span>,
+            label: (
+              <span>
+                <DollarOutlined /> Doanh thu
+              </span>
+            ),
             children: <RevenueTab />,
           },
           {
             key: 'compare',
-            label: <span><RiseOutlined /> So sánh</span>,
+            label: (
+              <span>
+                <RiseOutlined /> So sánh
+              </span>
+            ),
             children: <CompareTab />,
           },
           {
             key: 'top-products',
-            label: <span><FireOutlined /> Top sản phẩm</span>,
+            label: (
+              <span>
+                <FireOutlined /> Top sản phẩm
+              </span>
+            ),
             children: <TopProductsTab />,
           },
         ]}

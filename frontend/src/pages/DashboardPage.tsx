@@ -1,5 +1,3 @@
-import React, { useEffect, useState } from 'react';
-import { Card, Row, Col, Typography, Table, Tag, Statistic, Space, message } from 'antd';
 import {
   ShoppingCartOutlined,
   DollarOutlined,
@@ -7,68 +5,119 @@ import {
   ClockCircleOutlined,
   AlertOutlined,
 } from '@ant-design/icons';
+import { Card, Row, Col, Typography, Table, Tag, Statistic, Space } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import api from '../services/api';
+
+import { useAuth } from '../contexts/useAuth';
+import {
+  useTodayInvoices,
+  useCurrentShift,
+  useAlertSummary,
+  useLowStockAlerts,
+  useExpiryAlerts,
+} from '../hooks';
+import type { Invoice } from '../types';
 import { formatVND } from '../utils/format';
-import { Invoice, Shift, ProductBatch } from '../types';
 
-interface AlertSummary {
-  expiring_7d: number;
-  expiring_30d: number;
-  expired: number;
-  low_stock: number;
-  out_of_stock: number;
-}
-
-interface LowStockItem {
-  id: number;
-  name: string;
-  unit: string;
-  stock: number;
-  min_quantity: number;
-  warning: string;
-}
-
-interface ExpiryAlertItem extends ProductBatch {
-  product: { id: number; name: string; sku: string; unit: string };
-  days_left: number;
-}
-
-export default function DashboardPage() {
+/**
+ * DashboardPage - Trang tổng quan
+ *
+ * 🚀 Đã optimize với:
+ * - React.memo để tránh re-render không cần thiết
+ * - useMemo cho các tính toán và table columns
+ */
+function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [todayInvoices, setTodayInvoices] = useState<Invoice[]>([]);
-  const [currentShift, setCurrentShift] = useState<Shift | null>(null);
-  const [alertSummary, setAlertSummary] = useState<AlertSummary | null>(null);
-  const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
-  const [expiring, setExpiring] = useState<ExpiryAlertItem[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
+  // 🚀 React Query - Tự động caching, loading, error handling
+  const { data: todayInvoices = [], isLoading: loadingInvoices } = useTodayInvoices();
+  const { data: currentShift, isLoading: loadingShift } = useCurrentShift();
+  const { data: alertSummary, isLoading: loadingSummary } = useAlertSummary();
+  const { data: lowStock = [], isLoading: loadingLowStock } = useLowStockAlerts();
+  const { data: expiring = [], isLoading: loadingExpiring } = useExpiryAlerts(7, 10);
 
-    Promise.allSettled([
-      api.get('/invoices', { params: { date: today, limit: 100 } }),
-      api.get('/shifts/current'),
-      api.get('/alerts/summary'),
-      api.get('/alerts/low-stock'),
-      api.get('/alerts/expiry', { params: { days: 7, limit: 10 } }),
-    ]).then(([invRes, shiftRes, summaryRes, lowRes, expiryRes]) => {
-      if (invRes.status === 'fulfilled') setTodayInvoices(invRes.value.data || []);
-      if (shiftRes.status === 'fulfilled') setCurrentShift(shiftRes.value.data);
-      if (summaryRes.status === 'fulfilled') setAlertSummary(summaryRes.value.data);
-      if (lowRes.status === 'fulfilled') setLowStock(lowRes.value.data || []);
-      if (expiryRes.status === 'fulfilled') setExpiring(expiryRes.value.data || []);
-      const failed = [invRes, shiftRes, summaryRes, lowRes, expiryRes].filter((r) => r.status === 'rejected');
-      if (failed.length > 0) message.error('Lỗi tải dữ liệu');
-      setLoading(false);
-    });
-  }, []);
+  // 🎯 Memoize các tính toán - chỉ tính lại khi data thay đổi
+  const completedInvoices = useMemo(
+    () => todayInvoices.filter(i => i.status === 'completed'),
+    [todayInvoices]
+  );
 
-  const completedInvoices = todayInvoices.filter((i) => i.status === 'completed');
-  const todayRevenue = completedInvoices.reduce((sum, i) => sum + i.final_total, 0);
-  const totalAlerts = alertSummary ? alertSummary.expired + alertSummary.expiring_7d + alertSummary.low_stock + alertSummary.out_of_stock : 0;
+  const todayRevenue = useMemo(
+    () => completedInvoices.reduce((sum, i) => sum + i.final_total, 0),
+    [completedInvoices]
+  );
+
+  const totalAlerts = useMemo(
+    () =>
+      alertSummary
+        ? alertSummary.expired +
+          alertSummary.expiring_7d +
+          alertSummary.low_stock +
+          alertSummary.out_of_stock
+        : 0,
+    [alertSummary]
+  );
+
+  // 🎯 Memoize table columns - tránh tạo mới mỗi render
+  const expiryColumns = useMemo(
+    () => [
+      { title: 'Sản phẩm', dataIndex: ['product', 'name'], ellipsis: true },
+      {
+        title: 'Còn',
+        dataIndex: 'days_left',
+        width: 80,
+        align: 'right' as const,
+        render: (d: number) => (
+          <Tag color={d <= 0 ? 'red' : d <= 3 ? 'orange' : 'gold'}>
+            {d <= 0 ? 'Hết hạn' : `${d} ngày`}
+          </Tag>
+        ),
+      },
+    ],
+    []
+  );
+
+  const lowStockColumns = useMemo(
+    () => [
+      { title: 'Sản phẩm', dataIndex: 'name', ellipsis: true },
+      {
+        title: 'Tồn kho',
+        dataIndex: 'stock',
+        width: 90,
+        align: 'right' as const,
+        render: (stock: number, record: { warning: string; unit: string }) => (
+          <Tag color={record.warning === 'out' ? 'red' : 'orange'}>
+            {stock} {record.unit}
+          </Tag>
+        ),
+      },
+    ],
+    []
+  );
+
+  const recentInvoiceColumns = useMemo<ColumnsType<Invoice>>(
+    () => [
+      { title: '#', dataIndex: 'id', width: 40 },
+      {
+        title: 'Tổng',
+        dataIndex: 'final_total',
+        render: formatVND,
+        align: 'right',
+        width: 100,
+      },
+      {
+        title: 'Giờ',
+        dataIndex: 'created_at',
+        width: 60,
+        render: (v: string) =>
+          new Date(v).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      },
+    ],
+    []
+  );
 
   return (
     <div>
@@ -79,7 +128,7 @@ export default function DashboardPage() {
       {/* Thống kê nhanh */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
-          <Card loading={loading}>
+          <Card loading={loadingInvoices}>
             <Statistic
               title="Đơn hôm nay"
               value={completedInvoices.length}
@@ -88,17 +137,17 @@ export default function DashboardPage() {
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card loading={loading}>
+          <Card loading={loadingInvoices}>
             <Statistic
               title="Doanh thu hôm nay"
               value={todayRevenue}
               prefix={<DollarOutlined />}
-              formatter={(v) => formatVND(v as number)}
+              formatter={v => formatVND(v as number)}
             />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card loading={loading} hoverable onClick={() => navigate('/alerts')}>
+          <Card loading={loadingSummary} hoverable onClick={() => navigate('/alerts')}>
             <Statistic
               title="Cảnh báo"
               value={totalAlerts}
@@ -108,7 +157,7 @@ export default function DashboardPage() {
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card loading={loading}>
+          <Card loading={loadingShift}>
             <Statistic
               title="Ca hiện tại"
               value={currentShift ? `#${currentShift.id}` : 'Chưa mở'}
@@ -135,7 +184,9 @@ export default function DashboardPage() {
                     {alertSummary.expiring_7d} lô hết hạn trong 7 ngày
                   </Tag>
                 )}
-                <Typography.Link onClick={() => navigate('/alerts')}>Xem chi tiết →</Typography.Link>
+                <Typography.Link onClick={() => navigate('/alerts')}>
+                  Xem chi tiết →
+                </Typography.Link>
               </Space>
             </Card>
           </Col>
@@ -145,86 +196,66 @@ export default function DashboardPage() {
       <Row gutter={16}>
         {/* Hàng sắp hết hạn */}
         <Col xs={24} md={8}>
-          <Card title={<Space><AlertOutlined style={{ color: '#cf1322' }} /> Sắp hết hạn</Space>} size="small">
+          <Card
+            title={
+              <Space>
+                <AlertOutlined style={{ color: '#cf1322' }} /> Sắp hết hạn
+              </Space>
+            }
+            size="small"
+          >
             <Table
               dataSource={expiring.slice(0, 8)}
               rowKey="id"
               size="small"
               pagination={false}
-              loading={loading}
+              loading={loadingExpiring}
               locale={{ emptyText: 'Không có hàng sắp hết hạn' }}
-              columns={[
-                { title: 'Sản phẩm', dataIndex: ['product', 'name'], ellipsis: true },
-                {
-                  title: 'Còn',
-                  dataIndex: 'days_left',
-                  width: 80,
-                  align: 'right',
-                  render: (d: number) => (
-                    <Tag color={d <= 0 ? 'red' : d <= 3 ? 'orange' : 'gold'}>
-                      {d <= 0 ? 'Hết hạn' : `${d} ngày`}
-                    </Tag>
-                  ),
-                },
-              ]}
+              columns={expiryColumns}
             />
           </Card>
         </Col>
 
         {/* Hàng sắp hết */}
         <Col xs={24} md={8}>
-          <Card title={<Space><WarningOutlined style={{ color: '#faad14' }} /> Sắp hết hàng</Space>} size="small">
+          <Card
+            title={
+              <Space>
+                <WarningOutlined style={{ color: '#faad14' }} /> Sắp hết hàng
+              </Space>
+            }
+            size="small"
+          >
             <Table
               dataSource={lowStock.slice(0, 8)}
               rowKey="id"
               size="small"
               pagination={false}
-              loading={loading}
+              loading={loadingLowStock}
               locale={{ emptyText: 'Không có hàng nào sắp hết' }}
-              columns={[
-                { title: 'Sản phẩm', dataIndex: 'name', ellipsis: true },
-                {
-                  title: 'Tồn kho',
-                  dataIndex: 'stock',
-                  width: 90,
-                  align: 'right',
-                  render: (stock: number, record: LowStockItem) => (
-                    <Tag color={record.warning === 'out' ? 'red' : 'orange'}>
-                      {stock} {record.unit}
-                    </Tag>
-                  ),
-                },
-              ]}
+              columns={lowStockColumns}
             />
           </Card>
         </Col>
 
         {/* Đơn hàng gần đây */}
         <Col xs={24} md={8}>
-          <Card title={<Space><ShoppingCartOutlined /> Đơn gần đây</Space>} size="small">
+          <Card
+            title={
+              <Space>
+                <ShoppingCartOutlined /> Đơn gần đây
+              </Space>
+            }
+            size="small"
+          >
             <Table
               dataSource={completedInvoices.slice(0, 8)}
               rowKey="id"
               size="small"
               pagination={false}
-              loading={loading}
+              loading={loadingInvoices}
               locale={{ emptyText: 'Chưa có đơn hôm nay' }}
-              columns={[
-                { title: '#', dataIndex: 'id', width: 40 },
-                {
-                  title: 'Tổng',
-                  dataIndex: 'final_total',
-                  render: formatVND,
-                  align: 'right',
-                  width: 100,
-                },
-                {
-                  title: 'Giờ',
-                  dataIndex: 'created_at',
-                  width: 60,
-                  render: (v: string) => new Date(v).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-                },
-              ]}
+              columns={recentInvoiceColumns}
             />
           </Card>
         </Col>
@@ -232,3 +263,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+export default memo(DashboardPage);

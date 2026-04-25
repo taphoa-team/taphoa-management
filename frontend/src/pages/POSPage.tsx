@@ -1,13 +1,46 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Row, Col, Card, Input, List, Button, InputNumber, Select, Typography, Tag, message, Modal, Space, Badge, Layout, Spin, Empty, Divider } from 'antd';
+import {
+  PlusOutlined,
+  MinusOutlined,
+  DeleteOutlined,
+  ShoppingCartOutlined,
+  SearchOutlined,
+  ArrowLeftOutlined,
+  ClockCircleOutlined,
+  CloseOutlined,
+  CreditCardOutlined,
+  UserOutlined,
+  GiftOutlined,
+} from '@ant-design/icons';
+import {
+  Row,
+  Col,
+  Card,
+  Input,
+  List,
+  Button,
+  InputNumber,
+  Select,
+  Typography,
+  Tag,
+  message,
+  Modal,
+  Space,
+  Badge,
+  Layout,
+  Spin,
+  Empty,
+  Divider,
+} from 'antd';
 import type { InputRef } from 'antd';
-import { PlusOutlined, MinusOutlined, DeleteOutlined, ShoppingCartOutlined, SearchOutlined, ArrowLeftOutlined, ClockCircleOutlined, CloseOutlined, CreditCardOutlined, UserOutlined, GiftOutlined } from '@ant-design/icons';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
-import { ProductWithStock, Customer, Shift } from '../types';
-import { formatVND, inputNumberFormatter, getErrorMessage } from '../utils/format';
+
 import { CASH_DENOMINATIONS } from '../constants';
+import { useAuth } from '../contexts/useAuth';
+import { useProducts, useCustomers, useCurrentShift, useCreateInvoice } from '../hooks';
+import api from '../services/api';
+import type { ProductWithStock } from '../types';
+import { formatVND, inputNumberFormatter, getErrorMessage } from '../utils/format';
 
 interface CartItem {
   product: ProductWithStock;
@@ -41,92 +74,107 @@ const THEME = {
   white: '#ffffff',
 };
 
+const tabStyle = (isActive: boolean): React.CSSProperties => ({
+  height: 48,
+  padding: '0 20px',
+  borderRadius: 24,
+  fontSize: 15,
+  fontWeight: isActive ? 600 : 400,
+  background: isActive ? THEME.primary : THEME.white,
+  color: isActive ? THEME.white : THEME.gray600,
+  border: `2px solid ${isActive ? THEME.primary : THEME.gray300}`,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+  transition: 'all 0.15s',
+});
+
 export default function POSPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const MAX_STAFF_DISCOUNT_PCT = 20;
-  const [products, setProducts] = useState<ProductWithStock[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState('');
-  const [productsLoading, setProductsLoading] = useState(false);
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [modalSearch, setModalSearch] = useState('');
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [discountMode, setDiscountMode] = useState<'amount' | 'percent'>('amount');
   const [discountPercent, setDiscountPercent] = useState(0);
-  const [currentShift, setCurrentShift] = useState<Shift | null>(null);
   const searchRef = useRef<InputRef>(null);
   const modalSearchRef = useRef<InputRef>(null);
 
-  // Multi-order state — payment info stored per-order
+  // ─── React Query: data fetching ──────────────────────────────────────────
+  // Products: driven by productParams state; debounce updates it for modal search
+  const [productParams, setProductParams] = useState<Record<string, unknown>>({ limit: 50 });
+  const { data: products = [], isLoading: productsLoading } = useProducts(productParams);
+
+  // Customers: one-time load
+  const { data: customers = [] } = useCustomers({ limit: 100 });
+
+  // Current shift
+  const { data: currentShift = null } = useCurrentShift();
+
+  // Create invoice mutation
+  const createInvoiceMutation = useCreateInvoice();
+
+  // ─── Multi-order state ───────────────────────────────────────────────────
   const initialOrderId = useRef(Date.now()).current;
   const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([
-    { id: initialOrderId, items: [], createdAt: new Date().toISOString(), discountAmount: 0, cashGiven: 0, selectedCustomer: null },
+    {
+      id: initialOrderId,
+      items: [],
+      createdAt: new Date().toISOString(),
+      discountAmount: 0,
+      cashGiven: 0,
+      selectedCustomer: null,
+    },
   ]);
   const [activeOrderId, setActiveOrderId] = useState<number>(initialOrderId);
 
-  const activeOrder = activeOrders.find((o) => o.id === activeOrderId) || activeOrders[0];
-  const activeOrderIndex = activeOrders.findIndex((o) => o.id === activeOrderId) + 1;
+  const activeOrder = activeOrders.find(o => o.id === activeOrderId) || activeOrders[0];
+  const activeOrderIndex = activeOrders.findIndex(o => o.id === activeOrderId) + 1;
 
   // Payment values derived from active order
   const discountAmount = activeOrder.discountAmount;
   const cashGiven = activeOrder.cashGiven;
   const selectedCustomer = activeOrder.selectedCustomer;
 
-  const updateActiveOrder = useCallback((updates: Partial<ActiveOrder>) => {
-    setActiveOrders((prev) =>
-      prev.map((o) => (o.id === activeOrderId ? { ...o, ...updates } : o))
-    );
-  }, [activeOrderId]);
+  const updateActiveOrder = useCallback(
+    (updates: Partial<ActiveOrder>) => {
+      setActiveOrders(prev => prev.map(o => (o.id === activeOrderId ? { ...o, ...updates } : o)));
+    },
+    [activeOrderId]
+  );
 
   const setDiscountAmount = (v: number) => updateActiveOrder({ discountAmount: v });
   const setCashGiven = (v: number) => updateActiveOrder({ cashGiven: v });
   const setSelectedCustomer = (v: number | null) => updateActiveOrder({ selectedCustomer: v });
 
-  const fetchProducts = useCallback(async (q?: string) => {
-    setProductsLoading(true);
-    try {
-      const params: any = { limit: 50 };
-      if (q) params.search = q;
-      const res = await api.get('/products', { params });
-      setProducts(res.data || []);
-    } catch {
-      message.error('Lỗi tải danh sách sản phẩm');
-    } finally {
-      setProductsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchProducts();
-    api.get('/customers', { params: { limit: 100 } })
-      .then((r) => setCustomers(r.data || []))
-      .catch(() => message.error('Lỗi tải danh sách khách hàng'));
-    api.get('/shifts/current')
-      .then((r) => setCurrentShift(r.data))
-      .catch(() => setCurrentShift(null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Debounce search trong modal
+  // ─── Modal search debounce → update productParams ────────────────────────
   useEffect(() => {
     if (productModalOpen) {
-      const timer = setTimeout(() => fetchProducts(modalSearch), 300);
+      const timer = setTimeout(() => {
+        const params: Record<string, unknown> = { limit: 50 };
+        if (modalSearch) params.search = modalSearch;
+        setProductParams(params);
+      }, 300);
       return () => clearTimeout(timer);
     }
-  }, [modalSearch, productModalOpen, fetchProducts]);
+  }, [modalSearch, productModalOpen]);
 
-  // Reset discount mode + focus ô search khi đổi tab
+  // Reset discount mode + focus search input when switching order tab
   useEffect(() => {
     setDiscountMode('amount');
     setDiscountPercent(0);
     searchRef.current?.focus();
   }, [activeOrderId]);
 
-
-  const updateActiveOrderItems = useCallback((items: CartItem[]) => {
-    updateActiveOrder({ items });
-  }, [updateActiveOrder]);
+  const updateActiveOrderItems = useCallback(
+    (items: CartItem[]) => {
+      updateActiveOrder({ items });
+    },
+    [updateActiveOrder]
+  );
 
   const addToCart = (product: ProductWithStock) => {
     if (product.stock <= 0) {
@@ -134,14 +182,14 @@ export default function POSPage() {
       return;
     }
     const items = activeOrder.items;
-    const existing = items.find((c) => c.product.id === product.id);
+    const existing = items.find(c => c.product.id === product.id);
     let nextItems: CartItem[];
     if (existing) {
       if (existing.quantity >= product.stock) {
         message.warning('Số lượng trong giỏ đã đạt tồn kho');
         return;
       }
-      nextItems = items.map((c) =>
+      nextItems = items.map(c =>
         c.product.id === product.id ? { ...c, quantity: c.quantity + 1 } : c
       );
     } else {
@@ -151,27 +199,24 @@ export default function POSPage() {
     message.success({ content: `Đã thêm ${product.name}`, duration: 1 });
   };
 
-  // Xử lý ô search chính (trên giỏ hàng)
-  // Quét barcode → tìm chính xác → thêm luôn
-  // Gõ tên → mở modal
+  // Main search: barcode scan → exact match → add immediately
+  // Text search → open modal
   const handleMainSearch = async () => {
     if (!search.trim()) {
       setProductModalOpen(true);
       setModalSearch('');
       return;
     }
-    // Thử tìm sản phẩm khớp barcode/SKU chính xác
+    // Quick one-off search by barcode/SKU — kept as direct api call
     try {
       const res = await api.get('/products', { params: { search: search.trim(), limit: 5 } });
       const results = res.data || [];
-      // Nếu có đúng 1 kết quả → thêm luôn vào giỏ
       if (results.length === 1) {
         addToCart(results[0]);
         setSearch('');
         searchRef.current?.focus();
         return;
       }
-      // Nhiều kết quả hoặc không có → mở modal để chọn
       setModalSearch(search);
       setProductModalOpen(true);
       setSearch('');
@@ -193,27 +238,26 @@ export default function POSPage() {
   const updateQty = (productId: number, qty: number) => {
     const items = activeOrder.items;
     if (qty <= 0) {
-      updateActiveOrderItems(items.filter((c) => c.product.id !== productId));
+      updateActiveOrderItems(items.filter(c => c.product.id !== productId));
     } else {
-      const item = items.find((c) => c.product.id === productId);
+      const item = items.find(c => c.product.id === productId);
       if (item && qty > item.product.stock) {
         message.warning('Số lượng vượt quá tồn kho');
         return;
       }
       updateActiveOrderItems(
-        items.map((c) => (c.product.id === productId ? { ...c, quantity: qty } : c))
+        items.map(c => (c.product.id === productId ? { ...c, quantity: qty } : c))
       );
     }
   };
 
   const removeFromCart = (productId: number) => {
-    updateActiveOrderItems(activeOrder.items.filter((c) => c.product.id !== productId));
+    updateActiveOrderItems(activeOrder.items.filter(c => c.product.id !== productId));
   };
 
   const subtotal = activeOrder.items.reduce((sum, c) => sum + c.product.sell_price * c.quantity, 0);
   const clampedDiscount = Math.min(discountAmount, subtotal);
   const finalTotal = subtotal - clampedDiscount;
-  // Mặc định khách trả đủ tiền — chỉ tính tiền thừa khi chọn mệnh giá lớn hơn
   const effectiveCashGiven = cashGiven === 0 ? finalTotal : cashGiven;
   const changeAmount = effectiveCashGiven > finalTotal ? effectiveCashGiven - finalTotal : 0;
 
@@ -225,7 +269,17 @@ export default function POSPage() {
       return;
     }
     const newId = Date.now();
-    setActiveOrders((prev) => [...prev, { id: newId, items: [], createdAt: new Date().toISOString(), discountAmount: 0, cashGiven: 0, selectedCustomer: null }]);
+    setActiveOrders(prev => [
+      ...prev,
+      {
+        id: newId,
+        items: [],
+        createdAt: new Date().toISOString(),
+        discountAmount: 0,
+        cashGiven: 0,
+        selectedCustomer: null,
+      },
+    ]);
     setActiveOrderId(newId);
   };
 
@@ -234,16 +288,25 @@ export default function POSPage() {
   };
 
   const closeOrderTab = (id: number) => {
-    const order = activeOrders.find((o) => o.id === id);
+    const order = activeOrders.find(o => o.id === id);
     if (!order) return;
     if (order.items.length > 0) {
       message.warning('Giỏ hàng còn sản phẩm — thanh toán hoặc xóa hết trước khi đóng');
       return;
     }
-    const remaining = activeOrders.filter((o) => o.id !== id);
+    const remaining = activeOrders.filter(o => o.id !== id);
     if (remaining.length === 0) {
       const newId = Date.now();
-      setActiveOrders([{ id: newId, items: [], createdAt: new Date().toISOString(), discountAmount: 0, cashGiven: 0, selectedCustomer: null }]);
+      setActiveOrders([
+        {
+          id: newId,
+          items: [],
+          createdAt: new Date().toISOString(),
+          discountAmount: 0,
+          cashGiven: 0,
+          selectedCustomer: null,
+        },
+      ]);
       setActiveOrderId(newId);
     } else {
       setActiveOrders(remaining);
@@ -271,7 +334,6 @@ export default function POSPage() {
     }
 
     checkoutLoadingRef.current = true;
-    setCheckoutLoading(true);
     try {
       const payload = {
         customer_id: selectedCustomer || undefined,
@@ -279,37 +341,46 @@ export default function POSPage() {
         payment_method: 'cash',
         cash_amount: finalTotal,
         cash_given: effectiveCashGiven,
-        items: activeOrder.items.map((c) => ({
+        items: activeOrder.items.map(c => ({
           product_id: c.product.id,
           quantity: c.quantity,
           unit: c.unit,
         })),
       };
-      await api.post('/invoices', payload);
+      await createInvoiceMutation.mutateAsync(payload);
       message.success('Thanh toán thành công!');
 
-      const remaining = activeOrders.filter((o) => o.id !== activeOrderId);
+      const remaining = activeOrders.filter(o => o.id !== activeOrderId);
       if (remaining.length === 0) {
         const newId = Date.now();
-        setActiveOrders([{ id: newId, items: [], createdAt: new Date().toISOString(), discountAmount: 0, cashGiven: 0, selectedCustomer: null }]);
+        setActiveOrders([
+          {
+            id: newId,
+            items: [],
+            createdAt: new Date().toISOString(),
+            discountAmount: 0,
+            cashGiven: 0,
+            selectedCustomer: null,
+          },
+        ]);
         setActiveOrderId(newId);
       } else {
         setActiveOrders(remaining);
         setActiveOrderId(remaining[0].id);
       }
-
-      fetchProducts();
+      // Products auto-refetch via useCreateInvoice's onSuccess invalidation
     } catch (err: unknown) {
       message.error(getErrorMessage(err, 'Lỗi thanh toán'));
     } finally {
       checkoutLoadingRef.current = false;
-      setCheckoutLoading(false);
     }
   };
 
   // Ref to always access latest handleCheckout (avoids stale closure in keyboard listener)
   const checkoutRef = useRef(handleCheckout);
-  useEffect(() => { checkoutRef.current = handleCheckout; });
+  useEffect(() => {
+    checkoutRef.current = handleCheckout;
+  });
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -325,23 +396,7 @@ export default function POSPage() {
   }, []);
 
   const denominations = CASH_DENOMINATIONS;
-
-  const tabStyle = (isActive: boolean): React.CSSProperties => ({
-    height: 48,
-    padding: '0 20px',
-    borderRadius: 24,
-    fontSize: 15,
-    fontWeight: isActive ? 600 : 400,
-    background: isActive ? THEME.primary : THEME.white,
-    color: isActive ? THEME.white : THEME.gray600,
-    border: `2px solid ${isActive ? THEME.primary : THEME.gray300}`,
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 8,
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    transition: 'all 0.15s',
-  });
+  const checkoutLoading = createInvoiceMutation.isPending;
 
   return (
     <Layout style={{ height: '100vh', overflow: 'hidden', background: THEME.gray100 }}>
@@ -374,7 +429,9 @@ export default function POSPage() {
               Ca #{currentShift.id}
             </Tag>
           ) : (
-            <Tag color="error" style={{ fontSize: 13 }}>Chưa mở ca</Tag>
+            <Tag color="error" style={{ fontSize: 13 }}>
+              Chưa mở ca
+            </Tag>
           )}
           <Typography.Text style={{ color: THEME.white, fontSize: 13 }}>
             {user?.name}
@@ -383,15 +440,17 @@ export default function POSPage() {
       </Layout.Header>
 
       {/* Order Tabs */}
-      <div style={{
-        background: THEME.white,
-        padding: '6px 16px',
-        borderBottom: `1px solid ${THEME.gray200}`,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        overflowX: 'auto',
-      }}>
+      <div
+        style={{
+          background: THEME.white,
+          padding: '6px 16px',
+          borderBottom: `1px solid ${THEME.gray200}`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          overflowX: 'auto',
+        }}
+      >
         {activeOrders.map((order, index) => {
           const isActive = order.id === activeOrderId;
           return (
@@ -400,19 +459,34 @@ export default function POSPage() {
               {order.items.length > 0 && (
                 <Badge
                   count={order.items.length}
-                  style={{ backgroundColor: isActive ? THEME.white : THEME.primary, color: isActive ? THEME.primary : THEME.white }}
+                  style={{
+                    backgroundColor: isActive ? THEME.white : THEME.primary,
+                    color: isActive ? THEME.primary : THEME.white,
+                  }}
                 />
               )}
               {activeOrders.length > 1 && (
                 <span
                   style={{
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    width: 32, height: 32, borderRadius: 16,
-                    cursor: 'pointer', transition: 'background 0.15s',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    cursor: 'pointer',
+                    transition: 'background 0.15s',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = isActive ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  onClick={(e) => { e.stopPropagation(); closeOrderTab(order.id); }}
+                  onMouseEnter={e =>
+                    (e.currentTarget.style.background = isActive
+                      ? 'rgba(255,255,255,0.2)'
+                      : 'rgba(0,0,0,0.08)')
+                  }
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  onClick={e => {
+                    e.stopPropagation();
+                    closeOrderTab(order.id);
+                  }}
                 >
                   <CloseOutlined style={{ fontSize: 13 }} />
                 </span>
@@ -430,19 +504,18 @@ export default function POSPage() {
         </Button>
       </div>
 
-      {/* Main Content: 2 cột — flex fill phần còn lại, không scroll */}
+      {/* Main Content: 2 columns */}
       <Layout.Content style={{ padding: 12, flex: 1, overflow: 'hidden' }}>
         <Row gutter={12} style={{ height: '100%' }}>
-
-          {/* CỘT TRÁI: Giỏ hàng — 60% */}
+          {/* LEFT: Cart — 60% */}
           <Col xs={24} md={15} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* Ô tìm kiếm / quét barcode */}
+            {/* Search / barcode input */}
             <Input
               ref={searchRef}
               prefix={<SearchOutlined style={{ color: THEME.gray400, fontSize: 18 }} />}
               placeholder="Quét barcode hoặc gõ tên sản phẩm..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={e => setSearch(e.target.value)}
               onPressEnter={handleMainSearch}
               allowClear
               size="large"
@@ -452,7 +525,10 @@ export default function POSPage() {
                 <Button
                   type="primary"
                   icon={<SearchOutlined />}
-                  onClick={() => { setModalSearch(''); setProductModalOpen(true); }}
+                  onClick={() => {
+                    setModalSearch('');
+                    setProductModalOpen(true);
+                  }}
                   style={{ borderRadius: 8, height: 38 }}
                 >
                   Tìm
@@ -460,17 +536,26 @@ export default function POSPage() {
               }
             />
 
-            {/* Danh sách SP trong giỏ */}
+            {/* Cart items */}
             <Card
               title={
                 <Space>
                   <ShoppingCartOutlined style={{ color: THEME.primary }} />
                   <span>Đơn #{activeOrderIndex}</span>
-                  <Badge count={activeOrder.items.length} style={{ backgroundColor: THEME.primary }} />
+                  <Badge
+                    count={activeOrder.items.length}
+                    style={{ backgroundColor: THEME.primary }}
+                  />
                 </Space>
               }
-              style={{ flex: 1, borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
-              bodyStyle={{ flex: 1, overflow: 'auto', padding: 0 }}
+              style={{
+                flex: 1,
+                borderRadius: 12,
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+              styles={{ body: { flex: 1, overflow: 'auto', padding: 0 } }}
             >
               {activeOrder.items.length === 0 ? (
                 <Empty
@@ -492,21 +577,27 @@ export default function POSPage() {
                       }}
                     >
                       {/* STT */}
-                      <Typography.Text type="secondary" style={{ width: 24, textAlign: 'center', fontSize: 14 }}>
+                      <Typography.Text
+                        type="secondary"
+                        style={{ width: 24, textAlign: 'center', fontSize: 14 }}
+                      >
                         {idx + 1}
                       </Typography.Text>
 
-                      {/* Tên + giá đơn vị */}
+                      {/* Name + unit price */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <Typography.Text strong style={{ fontSize: 15 }} ellipsis>
                           {item.product.name}
                         </Typography.Text>
-                        <Typography.Text type="secondary" style={{ fontSize: 13, display: 'block' }}>
+                        <Typography.Text
+                          type="secondary"
+                          style={{ fontSize: 13, display: 'block' }}
+                        >
                           {formatVND(item.product.sell_price)} / {item.product.unit}
                         </Typography.Text>
                       </div>
 
-                      {/* Tăng giảm số lượng */}
+                      {/* Quantity controls */}
                       <Space size={6}>
                         <Button
                           icon={<MinusOutlined />}
@@ -516,7 +607,7 @@ export default function POSPage() {
                         <InputNumber
                           min={1}
                           value={item.quantity}
-                          onChange={(v) => updateQty(item.product.id, v || 1)}
+                          onChange={v => updateQty(item.product.id, v || 1)}
                           style={{ width: 56, height: 44 }}
                           controls={false}
                         />
@@ -527,12 +618,20 @@ export default function POSPage() {
                         />
                       </Space>
 
-                      {/* Thành tiền */}
-                      <Typography.Text strong style={{ fontSize: 15, color: THEME.primary, minWidth: 100, textAlign: 'right' }}>
+                      {/* Line total */}
+                      <Typography.Text
+                        strong
+                        style={{
+                          fontSize: 15,
+                          color: THEME.primary,
+                          minWidth: 100,
+                          textAlign: 'right',
+                        }}
+                      >
                         {formatVND(item.product.sell_price * item.quantity)}
                       </Typography.Text>
 
-                      {/* Xóa */}
+                      {/* Delete */}
                       <Button
                         type="text"
                         danger
@@ -547,21 +646,51 @@ export default function POSPage() {
             </Card>
           </Col>
 
-          {/* CỘT PHẢI: Thanh toán — 40% */}
+          {/* RIGHT: Payment — 40% */}
           <Col xs={24} md={9} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Card
-              style={{ flex: 1, borderRadius: 12, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-              bodyStyle={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', overflow: 'auto' }}
+              style={{
+                flex: 1,
+                borderRadius: 12,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+              styles={{
+                body: {
+                  flex: 1,
+                  padding: 16,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'auto',
+                },
+              }}
             >
-              {/* Tạm tính */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              {/* Subtotal */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
                 <Typography.Text style={{ fontSize: 15 }}>Tạm tính</Typography.Text>
-                <Typography.Text strong style={{ fontSize: 20 }}>{formatVND(subtotal)}</Typography.Text>
+                <Typography.Text strong style={{ fontSize: 20 }}>
+                  {formatVND(subtotal)}
+                </Typography.Text>
               </div>
 
-              {/* Giảm giá — bấm đ/% để chuyển đổi */}
+              {/* Discount */}
               <div style={{ marginBottom: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 4,
+                  }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <GiftOutlined style={{ color: THEME.warning }} />
                     <Typography.Text style={{ fontSize: 14 }}>Giảm giá</Typography.Text>
@@ -570,29 +699,49 @@ export default function POSPage() {
                 <Space.Compact style={{ width: '100%' }}>
                   <InputNumber
                     min={0}
-                    max={discountMode === 'percent' ? (user?.role === 'admin' ? 100 : MAX_STAFF_DISCOUNT_PCT) : (user?.role === 'admin' ? subtotal : Math.round(subtotal * MAX_STAFF_DISCOUNT_PCT / 100))}
+                    max={
+                      discountMode === 'percent'
+                        ? user?.role === 'admin'
+                          ? 100
+                          : MAX_STAFF_DISCOUNT_PCT
+                        : user?.role === 'admin'
+                          ? subtotal
+                          : Math.round((subtotal * MAX_STAFF_DISCOUNT_PCT) / 100)
+                    }
                     value={discountMode === 'percent' ? discountPercent : discountAmount}
-                    onChange={(v) => {
+                    onChange={v => {
                       const maxPct = user?.role === 'admin' ? 100 : MAX_STAFF_DISCOUNT_PCT;
                       if (discountMode === 'percent') {
                         const pct = Math.min(v || 0, maxPct);
                         setDiscountPercent(pct);
-                        setDiscountAmount(Math.round(subtotal * pct / 100));
+                        setDiscountAmount(Math.round((subtotal * pct) / 100));
                         if ((v || 0) > maxPct) message.warning(`Chỉ được giảm tối đa ${maxPct}%`);
                       } else {
-                        const maxAmount = Math.round(subtotal * maxPct / 100);
-                        const amount = Math.min(v || 0, user?.role === 'admin' ? subtotal : maxAmount);
+                        const maxAmount = Math.round((subtotal * maxPct) / 100);
+                        const amount = Math.min(
+                          v || 0,
+                          user?.role === 'admin' ? subtotal : maxAmount
+                        );
                         setDiscountAmount(amount);
-                        setDiscountPercent(subtotal > 0 ? Math.round(amount / subtotal * 100) : 0);
-                        if ((v || 0) > maxAmount && user?.role !== 'admin') message.warning(`Chỉ được giảm tối đa ${maxPct}% (${formatVND(maxAmount)})`);
+                        setDiscountPercent(
+                          subtotal > 0 ? Math.round((amount / subtotal) * 100) : 0
+                        );
+                        if ((v || 0) > maxAmount && user?.role !== 'admin')
+                          message.warning(
+                            `Chỉ được giảm tối đa ${maxPct}% (${formatVND(maxAmount)})`
+                          );
                       }
                     }}
-                    formatter={(v) => discountMode === 'percent' ? `${v}%` : inputNumberFormatter(v) + 'đ'}
-                    parser={(v) => Number((v as string).replace(/[^\d]/g, ''))}
+                    formatter={v =>
+                      discountMode === 'percent' ? `${v}%` : inputNumberFormatter(v) + 'đ'
+                    }
+                    parser={v => Number((v as string).replace(/[^\d]/g, ''))}
                     style={{ flex: 1 }}
                   />
                   <Button
-                    onClick={() => setDiscountMode(discountMode === 'amount' ? 'percent' : 'amount')}
+                    onClick={() =>
+                      setDiscountMode(discountMode === 'amount' ? 'percent' : 'amount')
+                    }
                     style={{ width: 44, fontWeight: 600 }}
                   >
                     ⇄
@@ -600,7 +749,7 @@ export default function POSPage() {
                 </Space.Compact>
               </div>
 
-              {/* Khách hàng */}
+              {/* Customer */}
               <div style={{ marginBottom: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                   <UserOutlined style={{ color: THEME.primary }} />
@@ -612,7 +761,7 @@ export default function POSPage() {
                   placeholder="Khách lẻ"
                   value={selectedCustomer}
                   onChange={setSelectedCustomer}
-                  options={customers.map((c) => ({
+                  options={customers.map(c => ({
                     value: c.id,
                     label: `${c.name}${c.phone ? ` - ${c.phone}` : ''}`,
                   }))}
@@ -625,7 +774,7 @@ export default function POSPage() {
 
               <Divider style={{ margin: '6px 0 10px' }} />
 
-              {/* Tiền khách đưa */}
+              {/* Cash given */}
               <div style={{ marginBottom: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                   <CreditCardOutlined style={{ color: THEME.success }} />
@@ -634,9 +783,9 @@ export default function POSPage() {
                 <InputNumber
                   min={0}
                   value={cashGiven}
-                  onChange={(v) => setCashGiven(v || 0)}
+                  onChange={v => setCashGiven(v || 0)}
                   formatter={inputNumberFormatter}
-                  parser={(v) => Number((v as string).replace(/\D/g, ''))}
+                  parser={v => Number((v as string).replace(/\D/g, ''))}
                   placeholder={subtotal > 0 ? `Mặc định: ${formatVND(finalTotal)}` : 'Đủ tiền'}
                   addonAfter="đ"
                   style={{ width: '100%' }}
@@ -644,9 +793,16 @@ export default function POSPage() {
                 />
               </div>
 
-              {/* Mệnh giá nhanh — chỉ hiện khi khách đưa khác giá */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
-                {denominations.map((d) => (
+              {/* Quick denominations */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: 6,
+                  marginBottom: 10,
+                }}
+              >
+                {denominations.map(d => (
                   <Button
                     key={d}
                     onClick={() => setCashGiven(cashGiven === d ? 0 : d)}
@@ -666,19 +822,23 @@ export default function POSPage() {
                 ))}
               </div>
 
-              {/* Tiền thừa */}
+              {/* Change */}
               {changeAmount > 0 && (
-                <div style={{
-                  background: '#f0fdf4',
-                  border: '1px solid #bbf7d0',
-                  borderRadius: 10,
-                  padding: '12px 16px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: 10,
-                }}>
-                  <Typography.Text style={{ color: '#166534', fontSize: 14 }}>Tiền thừa:</Typography.Text>
+                <div
+                  style={{
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: 10,
+                    padding: '12px 16px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 10,
+                  }}
+                >
+                  <Typography.Text style={{ color: '#166534', fontSize: 14 }}>
+                    Tiền thừa:
+                  </Typography.Text>
                   <Typography.Text strong style={{ color: '#15803d', fontSize: 22 }}>
                     {formatVND(changeAmount)}
                   </Typography.Text>
@@ -688,16 +848,18 @@ export default function POSPage() {
               {/* Spacer */}
               <div style={{ flex: 1 }} />
 
-              {/* Tổng + nút thanh toán */}
-              <div style={{
-                background: THEME.primary,
-                borderRadius: 12,
-                padding: '12px 16px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 8,
-              }}>
+              {/* Total + checkout button */}
+              <div
+                style={{
+                  background: THEME.primary,
+                  borderRadius: 12,
+                  padding: '12px 16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 8,
+                }}
+              >
                 <Typography.Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14 }}>
                   THÀNH TIỀN
                 </Typography.Text>
@@ -719,8 +881,10 @@ export default function POSPage() {
                   fontSize: 18,
                   fontWeight: 700,
                   borderRadius: 14,
-                  background: activeOrder.items.length > 0 && effectiveCashGiven >= finalTotal
-                    ? THEME.primary : undefined,
+                  background:
+                    activeOrder.items.length > 0 && effectiveCashGiven >= finalTotal
+                      ? THEME.primary
+                      : undefined,
                   border: 'none',
                 }}
               >
@@ -731,7 +895,7 @@ export default function POSPage() {
         </Row>
       </Layout.Content>
 
-      {/* Modal chọn sản phẩm */}
+      {/* Product selection modal */}
       <Modal
         title={
           <Space>
@@ -750,7 +914,7 @@ export default function POSPage() {
           prefix={<SearchOutlined style={{ color: THEME.gray400 }} />}
           placeholder="Tìm tên, SKU, barcode..."
           value={modalSearch}
-          onChange={(e) => setModalSearch(e.target.value)}
+          onChange={e => setModalSearch(e.target.value)}
           onPressEnter={handleModalSearchEnter}
           allowClear
           size="large"
@@ -766,7 +930,7 @@ export default function POSPage() {
           <Empty description="Không tìm thấy sản phẩm" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
           <Row gutter={[12, 12]}>
-            {products.map((p) => (
+            {products.map(p => (
               <Col xs={12} sm={8} md={6} key={p.id}>
                 <Card
                   hoverable={p.stock > 0}
@@ -778,7 +942,7 @@ export default function POSPage() {
                       searchRef.current?.focus();
                     }
                   }}
-                  bodyStyle={{ padding: 12 }}
+                  styles={{ body: { padding: 12 } }}
                   style={{
                     borderRadius: 10,
                     cursor: p.stock > 0 ? 'pointer' : 'not-allowed',
@@ -788,11 +952,23 @@ export default function POSPage() {
                   <Typography.Text strong style={{ fontSize: 13, display: 'block' }} ellipsis>
                     {p.name}
                   </Typography.Text>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, alignItems: 'center' }}>
-                    <Typography.Text style={{ fontSize: 14, fontWeight: 600, color: THEME.primary }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginTop: 8,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Typography.Text
+                      style={{ fontSize: 14, fontWeight: 600, color: THEME.primary }}
+                    >
                       {formatVND(p.sell_price)}
                     </Typography.Text>
-                    <Tag color={p.stock > 10 ? 'success' : p.stock > 0 ? 'warning' : 'error'} style={{ fontSize: 12 }}>
+                    <Tag
+                      color={p.stock > 10 ? 'success' : p.stock > 0 ? 'warning' : 'error'}
+                      style={{ fontSize: 12 }}
+                    >
                       {p.stock}
                     </Tag>
                   </div>

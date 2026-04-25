@@ -1,6 +1,6 @@
-import React from 'react';
 import { Empty, Button, Typography } from 'antd';
 import type { EmptyProps } from 'antd/es/empty';
+import React from 'react';
 
 interface EmptyStateProps extends Omit<EmptyProps, 'description'> {
   icon?: React.ReactNode;
@@ -13,7 +13,7 @@ interface EmptyStateProps extends Omit<EmptyProps, 'description'> {
 
 /**
  * Component EmptyState dùng chung cho các trang danh sách rỗng
- * 
+ *
  * @example
  * <EmptyState
  *   title="Chưa có sản phẩm nào"

@@ -1,15 +1,17 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Tag, Button, Modal, InputNumber, Input, message, Space, Typography } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import api from '../services/api';
-import { Return, Invoice, InvoiceItem } from '../types';
-import { formatVND, formatDateTime, getErrorMessage } from '../utils/format';
+import { Table, Tag, Button, Modal, InputNumber, Input, message, Space, Typography } from 'antd';
+import React, { useState } from 'react';
+
 import { PageHeader, EmptyState } from '../components/common';
+import { useReturns, useCreateReturn } from '../hooks';
+import api from '../services/api';
+import type { Invoice, InvoiceItem } from '../types';
+import { formatVND, formatDateTime, getErrorMessage } from '../utils/format';
 
 export default function ReturnsPage() {
-  const [returns, setReturns] = useState<Return[]>([]);
-  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
+  const { data: returns = [], isLoading } = useReturns(page);
+  const createReturn = useCreateReturn();
 
   // Create return state
   const [modalOpen, setModalOpen] = useState(false);
@@ -18,17 +20,6 @@ export default function ReturnsPage() {
   const [fetchingInvoice, setFetchingInvoice] = useState(false);
   const [returnQtys, setReturnQtys] = useState<Record<number, number>>({});
   const [reason, setReason] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const fetchReturns = useCallback(() => {
-    setLoading(true);
-    api.get('/returns', { params: { page, limit: 20 } })
-      .then((res) => setReturns(res.data || []))
-      .catch(() => message.error('Lỗi tải dữ liệu'))
-      .finally(() => setLoading(false));
-  }, [page]);
-
-  useEffect(() => { fetchReturns(); }, [fetchReturns]);
 
   // Tìm đơn hàng gốc
   const fetchInvoice = async () => {
@@ -59,8 +50,8 @@ export default function ReturnsPage() {
     }
 
     const items = (invoice.items || [])
-      .filter((item) => (returnQtys[item.id] || 0) > 0)
-      .map((item) => ({
+      .filter(item => (returnQtys[item.id] || 0) > 0)
+      .map(item => ({
         product_id: item.product_id,
         batch_id: item.batch_id,
         quantity: returnQtys[item.id],
@@ -72,9 +63,8 @@ export default function ReturnsPage() {
       return;
     }
 
-    setSubmitting(true);
     try {
-      await api.post('/returns', {
+      await createReturn.mutateAsync({
         invoice_id: invoice.id,
         reason: reason.trim(),
         items,
@@ -85,11 +75,8 @@ export default function ReturnsPage() {
       setInvoiceId('');
       setReason('');
       setReturnQtys({});
-      fetchReturns();
     } catch (err: unknown) {
       message.error(getErrorMessage(err, 'Lỗi tạo phiếu trả'));
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -102,9 +89,25 @@ export default function ReturnsPage() {
     { title: 'Đơn gốc', dataIndex: 'invoice_id', width: 80, render: (v: number) => `#${v}` },
     { title: 'NV', dataIndex: ['user', 'name'], width: 120 },
     { title: 'Lý do', dataIndex: 'reason', ellipsis: true },
-    { title: 'Hoàn tiền', dataIndex: 'total_refund', render: formatVND, align: 'right' as const, width: 130 },
-    { title: 'TT', dataIndex: 'status', width: 100, render: (v: string) => <Tag color="green">{v}</Tag> },
-    { title: 'Ngày', dataIndex: 'created_at', render: (v: string) => formatDateTime(v), width: 160 },
+    {
+      title: 'Hoàn tiền',
+      dataIndex: 'total_refund',
+      render: formatVND,
+      align: 'right' as const,
+      width: 130,
+    },
+    {
+      title: 'TT',
+      dataIndex: 'status',
+      width: 100,
+      render: (v: string) => <Tag color="green">{v}</Tag>,
+    },
+    {
+      title: 'Ngày',
+      dataIndex: 'created_at',
+      render: (v: string) => formatDateTime(v),
+      width: 160,
+    },
   ];
 
   return (
@@ -116,17 +119,27 @@ export default function ReturnsPage() {
         onAction={() => setModalOpen(true)}
       />
 
-      <Table dataSource={returns} columns={columns} rowKey="id" loading={loading}
-        pagination={{ current: page, pageSize: 20, onChange: setPage, showSizeChanger: false }} size="middle"
-        locale={{ emptyText: <EmptyState title="Chưa có phiếu trả hàng nào" /> }} />
+      <Table
+        dataSource={returns}
+        columns={columns}
+        rowKey="id"
+        loading={isLoading}
+        pagination={{ current: page, pageSize: 20, onChange: setPage, showSizeChanger: false }}
+        size="middle"
+        locale={{ emptyText: <EmptyState title="Chưa có phiếu trả hàng nào" /> }}
+      />
 
       <Modal
         title="Tạo phiếu trả hàng"
         open={modalOpen}
-        onCancel={() => { setModalOpen(false); setInvoice(null); setInvoiceId(''); }}
+        onCancel={() => {
+          setModalOpen(false);
+          setInvoice(null);
+          setInvoiceId('');
+        }}
         onOk={handleSubmit}
         okText="Xác nhận trả hàng"
-        confirmLoading={submitting}
+        confirmLoading={createReturn.isPending}
         width={700}
       >
         {/* Tìm đơn gốc */}
@@ -134,17 +147,20 @@ export default function ReturnsPage() {
           <Input
             placeholder="Nhập mã đơn hàng"
             value={invoiceId}
-            onChange={(e) => setInvoiceId(e.target.value)}
+            onChange={e => setInvoiceId(e.target.value)}
             onPressEnter={fetchInvoice}
             style={{ width: 200 }}
           />
-          <Button onClick={fetchInvoice} loading={fetchingInvoice}>Tìm đơn</Button>
+          <Button onClick={fetchInvoice} loading={fetchingInvoice}>
+            Tìm đơn
+          </Button>
         </Space>
 
         {invoice && (
           <>
             <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-              Đơn #{invoice.id} — {formatVND(invoice.final_total)} — {formatDateTime(invoice.created_at)}
+              Đơn #{invoice.id} — {formatVND(invoice.final_total)} —{' '}
+              {formatDateTime(invoice.created_at)}
             </Typography.Text>
 
             <Table
@@ -159,12 +175,12 @@ export default function ReturnsPage() {
                 {
                   title: 'SL trả',
                   width: 100,
-                  render: (_: any, record: InvoiceItem) => (
+                  render: (_: unknown, record: InvoiceItem) => (
                     <InputNumber
                       min={0}
                       max={record.quantity}
                       value={returnQtys[record.id] || 0}
-                      onChange={(v) => setReturnQtys({ ...returnQtys, [record.id]: v || 0 })}
+                      onChange={v => setReturnQtys({ ...returnQtys, [record.id]: v || 0 })}
                       size="small"
                       style={{ width: 70 }}
                     />
@@ -176,7 +192,7 @@ export default function ReturnsPage() {
             <Input.TextArea
               placeholder="Lý do trả hàng (bắt buộc)"
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={e => setReason(e.target.value)}
               rows={2}
               style={{ marginTop: 12 }}
             />

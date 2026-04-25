@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { Form, Input, Button, Card, Typography, message } from 'antd';
 import { PhoneOutlined, LockOutlined } from '@ant-design/icons';
-import { useAuth } from '../contexts/AuthContext';
+import { Form, Input, Button, Card, Typography, message } from 'antd';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import { APP_NAME } from '../constants';
+import { useAuth } from '../contexts/useAuth';
 import { getErrorMessage } from '../utils/format';
 
 export default function LoginPage() {
@@ -31,13 +32,15 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      background: '#f0f2f5',
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        background: '#f0f2f5',
+      }}
+    >
       <Card style={{ width: 400 }}>
         <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 32 }}>
           {APP_NAME}
