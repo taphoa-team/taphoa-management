@@ -18,10 +18,11 @@ func OpenShift(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
 	var req struct {
-		OpeningCash int `json:"opening_cash" binding:"min=0"`
+		CashierName string `json:"cashier_name" binding:"required"`
+		OpeningCash int    `json:"opening_cash" binding:"min=0"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Nhập số tiền đầu ca"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nhập tên nhân viên và số tiền đầu ca"})
 		return
 	}
 
@@ -37,6 +38,7 @@ func OpenShift(c *gin.Context) {
 
 	shift := models.Shift{
 		UserID:      userID.(uint),
+		CashierName: req.CashierName,
 		OpeningCash: req.OpeningCash,
 		OpenedAt:    time.Now(),
 	}

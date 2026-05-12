@@ -15,13 +15,30 @@ import {
   AlertOutlined,
   BarChartOutlined,
 } from '@ant-design/icons';
-import { Layout, Menu, Button, theme, Typography } from 'antd';
+import {
+  Layout,
+  Menu,
+  Button,
+  theme,
+  Typography,
+  Modal,
+  Form,
+  InputNumber,
+  Input,
+  message,
+  Descriptions,
+  Tag,
+  Divider,
+} from 'antd';
 import type { MenuProps } from 'antd';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 
 import { APP_NAME } from '../constants';
 import { useAuth } from '../contexts/useAuth';
+import { useCurrentShift, useOpenShift, useCloseShift } from '../hooks';
+import type { Shift } from '../types';
+import { formatVND, inputNumberFormatter, getErrorMessage } from '../utils/format';
 
 import { Breadcrumbs } from './common';
 import ErrorBoundary from './ErrorBoundary';
@@ -106,6 +123,85 @@ export default function AppLayout() {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
+  // Shift management
+  const { data: currentShift, isLoading: shiftLoading } = useCurrentShift();
+  const openShiftMutation = useOpenShift();
+  const closeShiftMutation = useCloseShift();
+
+  const [closeModal, setCloseModal] = useState(false);
+  const [openForm] = Form.useForm();
+  const [closeForm] = Form.useForm();
+
+  // Bắt buộc mở ca nếu chưa có ca đang mở
+  const mustOpenShift = !shiftLoading && currentShift === null;
+
+  const handleOpenShift = async () => {
+    const values = await openForm.validateFields();
+    try {
+      await openShiftMutation.mutateAsync(values);
+      message.success('Đã mở ca');
+      openForm.resetFields();
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err));
+    }
+  };
+
+  const handleChangeShift = async () => {
+    if (!currentShift) return;
+    const values = await closeForm.validateFields();
+    try {
+      // 1. Đóng ca cũ
+      const res = await closeShiftMutation.mutateAsync({
+        id: currentShift.id,
+        data: { closing_cash: values.closing_cash, note: values.note },
+      });
+      const closedShift = res.data as Shift;
+
+      // 2. Mở ca mới
+      await openShiftMutation.mutateAsync({
+        cashier_name: values.new_cashier_name,
+        opening_cash: values.new_opening_cash || 0,
+      });
+
+      setCloseModal(false);
+      closeForm.resetFields();
+
+      // Hiện kết quả đóng ca
+      Modal.info({
+        title: 'Kết quả đóng ca',
+        width: 500,
+        content: (
+          <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+            <Descriptions.Item label="Nhân viên">
+              {closedShift.cashier_name}
+            </Descriptions.Item>
+            <Descriptions.Item label="Tiền đầu ca">
+              {formatVND(closedShift.opening_cash)}
+            </Descriptions.Item>
+            <Descriptions.Item label="Doanh thu">
+              {formatVND(closedShift.total_sales)}
+            </Descriptions.Item>
+            <Descriptions.Item label="Số đơn">{closedShift.total_invoices}</Descriptions.Item>
+            <Descriptions.Item label="Tiền mặt lý thuyết">
+              {formatVND(closedShift.expected_cash)}
+            </Descriptions.Item>
+            <Descriptions.Item label="Tiền mặt thực tế">
+              {formatVND(closedShift.closing_cash)}
+            </Descriptions.Item>
+            <Descriptions.Item label="Chênh lệch">
+              <Tag color={closedShift.difference === 0 ? 'green' : 'red'}>
+                {formatVND(closedShift.difference)}
+              </Tag>
+            </Descriptions.Item>
+          </Descriptions>
+        ),
+      });
+      message.success('Đã thay ca');
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err));
+    }
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -117,28 +213,21 @@ export default function AppLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      {/* 🎨 Header với gradient Teal - đồng bộ theme mới */}
       <Header
         style={{
           padding: '0 24px',
-          background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%)', // Gradient Teal
+          background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%)',
           display: 'flex',
           alignItems: 'center',
           gap: 24,
           position: 'sticky',
           top: 0,
           zIndex: 100,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15)', // Đổ bóng nhẹ
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
         }}
       >
-        {/* Logo với style mới */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}
-        >
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
               width: 36,
@@ -169,7 +258,7 @@ export default function AppLayout() {
           </Typography.Title>
         </div>
 
-        {/* Menu ngang với style mới */}
+        {/* Menu ngang */}
         <Menu
           theme="dark"
           mode="horizontal"
@@ -177,7 +266,7 @@ export default function AppLayout() {
           defaultOpenKeys={getOpenKey(selectedKey, menuItems)}
           items={menuItems}
           onClick={({ key }) => {
-            if (!key.startsWith('/')) return; // skip group keys
+            if (!key.startsWith('/')) return;
             if (key === '/pos') {
               window.open(key, '_blank');
               return;
@@ -193,15 +282,35 @@ export default function AppLayout() {
           }}
         />
 
+        {/* Shift info + Thay ca */}
+        {currentShift && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, whiteSpace: 'nowrap' }}>
+            <ClockCircleOutlined style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }} />
+            <Typography.Text style={{ color: '#fff', fontSize: 13 }}>
+              Ca #{currentShift.id} &mdash; {currentShift.cashier_name}
+            </Typography.Text>
+            <Button
+              size="small"
+              icon={<SwapOutlined />}
+              onClick={() => {
+                closeForm.resetFields();
+                setCloseModal(true);
+              }}
+              style={{
+                borderColor: 'rgba(255,255,255,0.3)',
+                color: '#fff',
+                background: 'rgba(255,255,255,0.1)',
+                borderRadius: 6,
+              }}
+            >
+              Thay ca
+            </Button>
+          </div>
+        )}
+
         {/* User info + logout */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, whiteSpace: 'nowrap' }}>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-end',
-            }}
-          >
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
             <Typography.Text style={{ color: '#fff', fontWeight: 500, fontSize: 14 }}>
               {user?.name}
             </Typography.Text>
@@ -232,7 +341,7 @@ export default function AppLayout() {
           background: colorBgContainer,
           borderRadius: borderRadiusLG,
           minHeight: 'calc(100vh - 112px)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)', // Đổ bóng nhẹ cho content
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
         }}
       >
         <Breadcrumbs />
@@ -240,6 +349,73 @@ export default function AppLayout() {
           <Outlet />
         </ErrorBoundary>
       </Content>
+
+      {/* Modal bắt buộc mở ca */}
+      <Modal
+        title="Mở ca bán hàng"
+        open={mustOpenShift}
+        closable={false}
+        maskClosable={false}
+        onOk={handleOpenShift}
+        confirmLoading={openShiftMutation.isPending}
+        okText="Mở ca"
+        cancelButtonProps={{ style: { display: 'none' } }}
+      >
+        <Form form={openForm} layout="vertical">
+          <Form.Item
+            name="cashier_name"
+            label="Tên nhân viên"
+            rules={[{ required: true, message: 'Nhập tên nhân viên' }]}
+          >
+            <Input placeholder="VD: Lan, Hoa, Minh..." />
+          </Form.Item>
+          <Form.Item name="opening_cash" label="Tiền đầu ca (VNĐ)" initialValue={0}>
+            <InputNumber min={0} style={{ width: '100%' }} formatter={inputNumberFormatter} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Modal thay ca (đóng ca cũ + mở ca mới) */}
+      <Modal
+        title="Thay ca"
+        open={closeModal}
+        onOk={handleChangeShift}
+        onCancel={() => setCloseModal(false)}
+        confirmLoading={closeShiftMutation.isPending || openShiftMutation.isPending}
+        okText="Thay ca"
+        cancelText="Hủy"
+        width={480}
+      >
+        <Form form={closeForm} layout="vertical">
+          <Typography.Text strong>Đóng ca hiện tại — {currentShift?.cashier_name}</Typography.Text>
+          <Form.Item
+            name="closing_cash"
+            label="Tiền mặt thực tế cuối ca (VNĐ)"
+            rules={[{ required: true, message: 'Nhập số tiền' }]}
+            style={{ marginTop: 12 }}
+          >
+            <InputNumber min={0} style={{ width: '100%' }} formatter={inputNumberFormatter} />
+          </Form.Item>
+          <Form.Item name="note" label="Ghi chú">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+
+          <Divider />
+
+          <Typography.Text strong>Mở ca mới</Typography.Text>
+          <Form.Item
+            name="new_cashier_name"
+            label="Tên nhân viên mới"
+            rules={[{ required: true, message: 'Nhập tên nhân viên' }]}
+            style={{ marginTop: 12 }}
+          >
+            <Input placeholder="VD: Lan, Hoa, Minh..." />
+          </Form.Item>
+          <Form.Item name="new_opening_cash" label="Tiền đầu ca (VNĐ)" initialValue={0}>
+            <InputNumber min={0} style={{ width: '100%' }} formatter={inputNumberFormatter} />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Layout>
   );
 }
