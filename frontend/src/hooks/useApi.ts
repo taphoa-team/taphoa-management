@@ -159,8 +159,14 @@ export function useCurrentShift() {
   return useQuery({
     queryKey: queryKeys.shifts.current(),
     queryFn: async () => {
-      const res = await api.get('/shifts/current');
-      return res.data as Shift | null;
+      try {
+        const res = await api.get('/shifts/current');
+        return res.data as Shift;
+      } catch (err: unknown) {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (status === 404) return null;
+        throw err;
+      }
     },
   });
 }
@@ -542,7 +548,8 @@ export function useShifts(limit = 20) {
 export function useOpenShift() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { opening_cash: number }) => api.post('/shifts/open', data),
+    mutationFn: (data: { cashier_name: string; opening_cash: number }) =>
+      api.post('/shifts/open', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.shifts.all });
     },

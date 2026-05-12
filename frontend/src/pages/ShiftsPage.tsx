@@ -82,7 +82,7 @@ export default function ShiftsPage() {
 
   const columns = [
     { title: 'ID', dataIndex: 'id', width: 60 },
-    { title: 'Nhân viên', dataIndex: ['user', 'name'], width: 130 },
+    { title: 'Nhân viên', dataIndex: 'cashier_name', width: 130 },
     { title: 'Mở ca', dataIndex: 'opened_at', render: (v: string) => formatDateTime(v) },
     {
       title: 'Đóng ca',
@@ -166,6 +166,13 @@ export default function ShiftsPage() {
         cancelText="Hủy"
       >
         <Form form={openForm} layout="vertical">
+          <Form.Item
+            name="cashier_name"
+            label="Tên nhân viên"
+            rules={[{ required: true, message: 'Nhập tên nhân viên' }]}
+          >
+            <Input placeholder="VD: Lan, Hoa, Minh..." />
+          </Form.Item>
           <Form.Item name="opening_cash" label="Tiền đầu ca (VNĐ)" initialValue={0}>
             <InputNumber min={0} style={{ width: '100%' }} formatter={inputNumberFormatter} />
           </Form.Item>

@@ -133,6 +133,7 @@ export interface Shift {
   id: number;
   user_id: number;
   user?: User;
+  cashier_name: string;
   opening_cash: number;
   closing_cash: number | null;
   expected_cash: number | null;
