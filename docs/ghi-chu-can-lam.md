@@ -87,3 +87,10 @@
 - [x] Tạo CreatePurchaseOrderPage riêng
 - [x] Thêm knowledge-graph.md (bản đồ codebase)
 - [x] LoginPage — redesign UI: glass-morphism card, gradient background, animations
+- [x] In tem — JsBarcode (CODE128), layout 50x30mm, có "Family Mart" + barcode + giá
+- [x] Table headers — đồng bộ font-weight/size cho tất cả bảng
+
+### Việc tiếp theo (ngày mai):
+- [ ] Merge branch `fix-ui-ux` vào main
+- [ ] POS: hiện SP hết hàng với cảnh báo (xem mục 2 ở trên)
+- [ ] Bắt đầu viết đề cương đồ án
