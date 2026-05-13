@@ -132,8 +132,8 @@ export default function AppLayout() {
   const [openForm] = Form.useForm();
   const [closeForm] = Form.useForm();
 
-  // Bắt buộc mở ca nếu chưa có ca đang mở
-  const mustOpenShift = !shiftLoading && currentShift === null;
+  // Bắt buộc mở ca nếu chưa có ca đang mở (chỉ staff, admin không cần)
+  const mustOpenShift = !shiftLoading && currentShift === null && user?.role !== 'admin';
 
   const handleOpenShift = async () => {
     const values = await openForm.validateFields();

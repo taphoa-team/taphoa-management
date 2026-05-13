@@ -24,6 +24,23 @@ const routeLabels: Record<string, string> = {
   '/customers/:id': 'Chi tiết khách',
   '/debts': 'Công nợ',
   '/pos': 'Bán hàng',
+  '/reports': 'Báo cáo',
+};
+
+// Route nằm trong menu group → hiện breadcrumb: Tổng quan > Group > Page
+const routeGroups: Record<string, { label: string }> = {
+  '/invoices': { label: 'Đơn hàng' },
+  '/shifts': { label: 'Đơn hàng' },
+  '/returns': { label: 'Đơn hàng' },
+  '/products': { label: 'Hàng hóa' },
+  '/categories': { label: 'Hàng hóa' },
+  '/inventory': { label: 'Kho' },
+  '/purchase-orders': { label: 'Kho' },
+  '/suppliers': { label: 'Kho' },
+  '/inventory-checks': { label: 'Kho' },
+  '/waste': { label: 'Kho' },
+  '/customers': { label: 'Khách hàng' },
+  '/debts': { label: 'Khách hàng' },
 };
 
 // Các route có dynamic segment cần xử lý đặc biệt
@@ -33,12 +50,14 @@ const dynamicRoutePatterns = [
     label: 'Chi tiết đơn',
     parent: '/invoices',
     parentLabel: 'Lịch sử đơn',
+    group: 'Đơn hàng',
   },
   {
     pattern: /^\/customers\/\d+$/,
     label: 'Chi tiết khách',
     parent: '/customers',
-    parentLabel: 'Khách hàng',
+    parentLabel: 'Danh sách',
+    group: 'Khách hàng',
   },
 ];
 
@@ -71,24 +90,29 @@ export const Breadcrumbs: React.FC = memo(function Breadcrumbs() {
     if (dynamicMatch) {
       // Home
       result.push({ path: '/', label: 'Tổng quan', isLast: false });
+      // Group (nếu có)
+      if (dynamicMatch.group) {
+        result.push({ path: '', label: dynamicMatch.group, isLast: false });
+      }
       // Parent
       result.push({ path: dynamicMatch.parent, label: dynamicMatch.parentLabel, isLast: false });
       // Current
       result.push({ path: pathname, label: dynamicMatch.label, isLast: true });
     } else {
-      // Xử lý route thông thường
-      const pathSegments = pathname.split('/').filter(Boolean);
-      let currentPath = '';
-
       // Home
-      result.push({ path: '/', label: 'Tổng quan', isLast: pathSegments.length === 0 });
+      const isHome = pathname === '/';
+      result.push({ path: '/', label: 'Tổng quan', isLast: isHome });
 
-      pathSegments.forEach((segment, index) => {
-        currentPath += `/${segment}`;
-        const isLast = index === pathSegments.length - 1;
-        const label = routeLabels[currentPath] || segment;
-        result.push({ path: currentPath, label, isLast });
-      });
+      if (!isHome) {
+        // Group (nếu route thuộc menu group)
+        const group = routeGroups[pathname];
+        if (group) {
+          result.push({ path: '', label: group.label, isLast: false });
+        }
+        // Current page
+        const label = routeLabels[pathname] || pathname.split('/').filter(Boolean).pop() || '';
+        result.push({ path: pathname, label, isLast: true });
+      }
     }
 
     return result;
@@ -97,12 +121,16 @@ export const Breadcrumbs: React.FC = memo(function Breadcrumbs() {
   // 🎯 Memoize breadcrumb items cho Ant Design - chỉ tính lại khi items thay đổi
   const breadcrumbItems = useMemo(
     () =>
-      items.map(item => ({
-        key: item.path,
+      items.map((item, index) => ({
+        key: item.path || `group-${index}`,
         title: item.isLast ? (
           <span>{item.label}</span>
+        ) : item.path === '/' ? (
+          <Link to="/"><HomeOutlined /></Link>
+        ) : item.path === '' ? (
+          <span>{item.label}</span>
         ) : (
-          <Link to={item.path}>{item.path === '/' ? <HomeOutlined /> : item.label}</Link>
+          <Link to={item.path}>{item.label}</Link>
         ),
       })),
     [items]

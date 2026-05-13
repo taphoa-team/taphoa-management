@@ -1,13 +1,18 @@
 #!/bin/bash
 # Chạy tất cả services của taphoa-management
 # Usage: taphoa-all           (local)
-#        taphoa-all --tunnel   (local + cloudflare tunnel cho remote access)
+#        taphoa-all --tunnel   (local + cloudflare named tunnel cho remote access)
 
 PROJECT_DIR="$HOME/Documents/taphoa-management"
 BACKEND_DIR="$PROJECT_DIR/backend"
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 LOG_DIR="$PROJECT_DIR/.logs"
 TUNNEL_MODE=false
+
+# Named tunnel config (URL cố định)
+TUNNEL_NAME="taphoa"
+FRONTEND_DOMAIN="taphoa.bangth.org"
+BACKEND_DOMAIN="api-taphoa.bangth.org"
 
 if [ "$1" = "--tunnel" ]; then
     TUNNEL_MODE=true
@@ -32,6 +37,9 @@ echo -e "${CYAN}==============================${NC}"
 # Kill previous processes
 pkill -f "taphoa-management/backend.*main.go" 2>/dev/null
 pkill -f "vite.*taphoa" 2>/dev/null
+pkill -f "cloudflared tunnel run $TUNNEL_NAME" 2>/dev/null
+# Đợi port được giải phóng
+sleep 1
 
 # 1. PostgreSQL (docker)
 echo -e "\n${YELLOW}[1/3] Starting PostgreSQL...${NC}"
@@ -53,9 +61,7 @@ for i in {1..15}; do
     sleep 1
 done
 
-# Setup tunnel URLs nếu tunnel mode
-BACKEND_TUNNEL_URL=""
-FRONTEND_TUNNEL_URL=""
+# Setup URLs
 API_URL_ENV=""
 FRONTEND_URL_ENV="http://localhost:3000"
 
@@ -65,49 +71,26 @@ if $TUNNEL_MODE; then
         exit 1
     fi
 
-    # Backend tunnel
-    echo -e "\n${YELLOW}[T1] Starting backend tunnel...${NC}"
-    cloudflared tunnel --url http://localhost:8082 > "$LOG_DIR/tunnel-backend.log" 2>&1 &
-    echo $! > "$LOG_DIR/tunnel-backend.pid"
+    # Named tunnel (URL cố định, không đổi mỗi lần restart)
+    echo -e "\n${YELLOW}[T] Starting named tunnel ($TUNNEL_NAME)...${NC}"
+    cloudflared tunnel run "$TUNNEL_NAME" > "$LOG_DIR/tunnel.log" 2>&1 &
+    echo $! > "$LOG_DIR/tunnel.pid"
 
-    echo -n "  Waiting for URL..."
+    # Đợi tunnel kết nối
+    echo -n "  Waiting for connection..."
     for i in {1..15}; do
-        BACKEND_TUNNEL_URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$LOG_DIR/tunnel-backend.log" 2>/dev/null | head -1)
-        if [ -n "$BACKEND_TUNNEL_URL" ]; then
+        if grep -q "Registered tunnel connection" "$LOG_DIR/tunnel.log" 2>/dev/null; then
             echo -e " ${GREEN}done${NC}"
             break
         fi
         echo -n "."
         sleep 1
     done
-    if [ -z "$BACKEND_TUNNEL_URL" ]; then
-        echo -e " ${RED}failed${NC}"
-        exit 1
-    fi
-    echo -e "${GREEN}  Backend tunnel: $BACKEND_TUNNEL_URL${NC}"
-    API_URL_ENV="$BACKEND_TUNNEL_URL/api"
 
-    # Frontend tunnel
-    echo -e "\n${YELLOW}[T2] Starting frontend tunnel...${NC}"
-    cloudflared tunnel --url http://localhost:3000 > "$LOG_DIR/tunnel-frontend.log" 2>&1 &
-    echo $! > "$LOG_DIR/tunnel-frontend.pid"
-
-    echo -n "  Waiting for URL..."
-    for i in {1..15}; do
-        FRONTEND_TUNNEL_URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$LOG_DIR/tunnel-frontend.log" 2>/dev/null | head -1)
-        if [ -n "$FRONTEND_TUNNEL_URL" ]; then
-            echo -e " ${GREEN}done${NC}"
-            break
-        fi
-        echo -n "."
-        sleep 1
-    done
-    if [ -z "$FRONTEND_TUNNEL_URL" ]; then
-        echo -e " ${RED}failed${NC}"
-        exit 1
-    fi
-    echo -e "${GREEN}  Frontend tunnel: $FRONTEND_TUNNEL_URL${NC}"
-    FRONTEND_URL_ENV="$FRONTEND_TUNNEL_URL"
+    API_URL_ENV="https://$BACKEND_DOMAIN/api"
+    FRONTEND_URL_ENV="https://$FRONTEND_DOMAIN"
+    echo -e "${GREEN}  Frontend: https://$FRONTEND_DOMAIN${NC}"
+    echo -e "${GREEN}  Backend:  https://$BACKEND_DOMAIN${NC}"
 fi
 
 # 2. Backend (Go) - chạy background, ghi log
@@ -118,22 +101,22 @@ echo -e "${GREEN}  ✓ Backend starting (port 8082)${NC}"
 
 # 3. Frontend (React) - chạy background, ghi log
 echo -e "\n${YELLOW}[3/3] Starting Frontend...${NC}"
-if $TUNNEL_MODE && [ -n "$API_URL_ENV" ]; then
+if $TUNNEL_MODE; then
     (cd "$FRONTEND_DIR" && VITE_API_URL="$API_URL_ENV" npm start) > "$LOG_DIR/frontend.log" 2>&1 &
 else
     (cd "$FRONTEND_DIR" && npm start) > "$LOG_DIR/frontend.log" 2>&1 &
 fi
 echo $! > "$LOG_DIR/frontend.pid"
-echo -e "${GREEN}  ✓ Frontend starting (port 3001)${NC}"
+echo -e "${GREEN}  ✓ Frontend starting (port 3000)${NC}"
 
 echo -e "\n${CYAN}==============================${NC}"
 echo -e "  DB:       ${GREEN}localhost:5433${NC}"
 echo -e "  Backend:  ${GREEN}localhost:8082${NC}"
-echo -e "  Frontend: ${GREEN}localhost:3001${NC}"
+echo -e "  Frontend: ${GREEN}localhost:3000${NC}"
 if $TUNNEL_MODE; then
     echo -e "${CYAN}------------------------------${NC}"
-    echo -e "  Remote Backend:  ${GREEN}$BACKEND_TUNNEL_URL${NC}"
-    echo -e "  Remote Frontend: ${GREEN}$FRONTEND_TUNNEL_URL${NC}"
+    echo -e "  Frontend: ${GREEN}https://$FRONTEND_DOMAIN${NC}"
+    echo -e "  Backend:  ${GREEN}https://$BACKEND_DOMAIN${NC}"
 fi
 echo -e "${CYAN}==============================${NC}"
 
@@ -145,8 +128,8 @@ if $TUNNEL_MODE; then
     # Dưới trái: Backend log
     tilix -a session-add-down -e "tail -f $LOG_DIR/backend.log"
     sleep 0.3
-    # Dưới phải: Tunnel URLs
-    tilix -a session-add-right -e "bash -c \"echo ''; echo '=================================='; echo '  TUNNEL URLs - Copy & Share'; echo '=================================='; echo ''; echo '  Frontend: $FRONTEND_TUNNEL_URL'; echo ''; echo '  Backend:  $BACKEND_TUNNEL_URL'; echo ''; echo '=================================='; echo ''; tail -f $LOG_DIR/tunnel-frontend.log\""
+    # Dưới phải: Tunnel info
+    tilix -a session-add-right -e "bash -c \"echo ''; echo '=================================='; echo '  TUNNEL URLs (fixed)'; echo '=================================='; echo ''; echo '  Frontend: https://$FRONTEND_DOMAIN'; echo ''; echo '  Backend:  https://$BACKEND_DOMAIN'; echo ''; echo '=================================='; echo ''; tail -f $LOG_DIR/tunnel.log\""
 else
     # Không tunnel: chỉ split backend log ở dưới
     tilix -a session-add-down -e "tail -f $LOG_DIR/backend.log"
