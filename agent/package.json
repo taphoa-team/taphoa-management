@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "langgraphjs dev",
+    "chat": "node --env-file=.env --import tsx scripts/chat.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
