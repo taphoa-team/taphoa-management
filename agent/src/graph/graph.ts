@@ -3,12 +3,14 @@ import { ToolNode } from "@langchain/langgraph/prebuilt";
 import type { AIMessage } from "@langchain/core/messages";
 import { getLLM } from "../llm.js";
 import { readTools } from "../tools/taphoa-read.js";
+import { buildSystemMessage } from "../prompts/system.js";
 
 const llmWithTools = getLLM().bindTools(readTools);
 
 // Node `agent`: gọi LLM, có thể trả lời hoặc đòi gọi tool.
+// Prepend system message (vai trò + ngày hôm nay) vào đầu mỗi lượt.
 async function agentNode(state: typeof MessagesAnnotation.State) {
-  const response = await llmWithTools.invoke(state.messages);
+  const response = await llmWithTools.invoke([buildSystemMessage(), ...state.messages]);
   return { messages: [response] };
 }
 
