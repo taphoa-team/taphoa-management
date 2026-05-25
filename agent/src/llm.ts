@@ -6,7 +6,7 @@ import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
  */
 export function getLLM() {
   return new ChatGoogleGenerativeAI({
-    model: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
+    model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
     temperature: 0, // 0 = ổn định, ít "bịa"
     apiKey: process.env.GOOGLE_API_KEY,
   });

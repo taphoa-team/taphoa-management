@@ -115,7 +115,7 @@ test-fixtures/
 ```
 # Gemini (https://aistudio.google.com)
 GOOGLE_API_KEY=
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-2.5-flash
 
 # taphoa backend
 TAPHOA_API_URL=http://localhost:8082
@@ -329,7 +329,8 @@ export function getLLM() {
 }
 ```
 
-> Không có unit test cho file này (chỉ là cấu hình, sẽ verify gián tiếp khi graph chạy ở Task 6). Nếu model id báo lỗi "not found", vào AI Studio xem tên model hiện hành rồi sửa `GEMINI_MODEL` trong `.env`.
+> Không có unit test cho file này (chỉ là cấu hình, sẽ verify gián tiếp khi graph chạy ở Task 6).
+> **Gotcha (đã gặp):** `gemini-2.0-flash` có free-tier quota = 0 (429 `limit: 0`) → dùng `gemini-2.5-flash`. Nếu model báo lỗi/limit, gọi `GET https://generativelanguage.googleapis.com/v1beta/models?key=...` để xem model hợp lệ.
 
 - [ ] **Step 2: Commit**
 
