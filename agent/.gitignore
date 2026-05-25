@@ -4,3 +4,6 @@ dist/
 !.env.example
 test-fixtures/
 .langgraph_api/
+
+# Root .gitignore has `tools/` (unanchored) which also hides agent/src/tools — re-include it
+!src/tools/
