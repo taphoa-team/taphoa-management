@@ -5,6 +5,7 @@ import { getLLM } from "../llm.js";
 import { readTools } from "../tools/taphoa-read.js";
 import { recordPurchaseInvoice } from "../invoice/tool.js";
 import { buildSystemMessage } from "../prompts/system.js";
+import { normalizeMessageContent } from "./normalize.js";
 
 const allTools = [...readTools, recordPurchaseInvoice];
 const llmWithTools = getLLM().bindTools(allTools);
@@ -12,7 +13,7 @@ const llmWithTools = getLLM().bindTools(allTools);
 // Node `agent`: gọi LLM, có thể trả lời hoặc đòi gọi tool.
 // Prepend system message (vai trò + ngày hôm nay) vào đầu mỗi lượt.
 async function agentNode(state: typeof MessagesAnnotation.State) {
-  const response = await llmWithTools.invoke([buildSystemMessage(), ...state.messages]);
+  const response = await llmWithTools.invoke([buildSystemMessage(), ...normalizeMessageContent(state.messages)]);
   return { messages: [response] };
 }
 
