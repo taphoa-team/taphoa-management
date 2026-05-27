@@ -25,8 +25,8 @@ export function normalizeMessageContent(messages: BaseMessage[]): BaseMessage[] 
   return messages.map((m) => {
     if (m.getType() === "human" && Array.isArray(m.content)) {
       const content = (m.content as Block[]).map(normalizeImageBlock);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return new HumanMessage({ content: content as any });
+      // content là block thô từ wire (loose-typed) → cast qua kiểu content mà HumanMessage chấp nhận.
+      return new HumanMessage({ content: content as unknown as HumanMessage["content"] });
     }
     return m;
   });
