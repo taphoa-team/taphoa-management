@@ -3,9 +3,11 @@ import { ToolNode } from "@langchain/langgraph/prebuilt";
 import type { AIMessage } from "@langchain/core/messages";
 import { getLLM } from "../llm.js";
 import { readTools } from "../tools/taphoa-read.js";
+import { recordPurchaseInvoice } from "../invoice/tool.js";
 import { buildSystemMessage } from "../prompts/system.js";
 
-const llmWithTools = getLLM().bindTools(readTools);
+const allTools = [...readTools, recordPurchaseInvoice];
+const llmWithTools = getLLM().bindTools(allTools);
 
 // Node `agent`: gọi LLM, có thể trả lời hoặc đòi gọi tool.
 // Prepend system message (vai trò + ngày hôm nay) vào đầu mỗi lượt.
@@ -20,7 +22,7 @@ function shouldContinue(state: typeof MessagesAnnotation.State) {
   return last.tool_calls && last.tool_calls.length > 0 ? "tools" : END;
 }
 
-const toolNode = new ToolNode(readTools);
+const toolNode = new ToolNode(allTools);
 
 export const graph = new StateGraph(MessagesAnnotation)
   .addNode("agent", agentNode)

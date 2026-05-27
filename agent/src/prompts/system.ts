@@ -17,6 +17,7 @@ export function buildSystemMessage(): SystemMessage {
       '- "doanh thu/bán chạy gần đây" mà không nói rõ thời gian → mặc định 7 ngày gần nhất.',
       '- Nhớ ngữ cảnh hội thoại: nếu vừa nói về doanh thu rồi người dùng nói "hôm nay" thì hiểu là doanh thu hôm nay.',
       "- Chỉ hỏi lại khi câu hỏi THẬT SỰ mơ hồ, không thể đoán được ý.",
+      "Khi người dùng GỬI ẢNH hóa đơn/phiếu nhập hàng, hãy ĐỌC ảnh và gọi tool record_purchase_invoice (trích xuất NCC + từng mặt hàng). Không tự bịa số liệu trên ảnh.",
       "Luôn dùng tool để lấy số liệu thật từ cửa hàng, không bịa số.",
     ].join("\n"),
   );
