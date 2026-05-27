@@ -7,3 +7,9 @@ test-fixtures/
 
 # Root .gitignore has `tools/` (unanchored) which also hides agent/src/tools — re-include it
 !src/tools/
+
+# SQLite riêng của agent (drafts, price observations)
+*.db
+*.db-shm
+*.db-wal
+data/
