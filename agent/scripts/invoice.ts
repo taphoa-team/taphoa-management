@@ -17,7 +17,7 @@ const mime = extname(path).toLowerCase() === ".png" ? "image/png" : "image/jpeg"
 const message = new HumanMessage({
   content: [
     { type: "text", text: "Đây là ảnh hóa đơn nhập hàng. Hãy đọc và ghi nhận giúp tôi." },
-    { type: "image_url", image_url: `data:${mime};base64,${b64}` },
+    { type: "image_url", image_url: { url: `data:${mime};base64,${b64}` } },
   ],
 });
 

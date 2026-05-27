@@ -19,6 +19,8 @@ async function listAllProducts(): Promise<ProductLite[]> {
 
 const deps: InvoiceDeps = {
   listProducts: listAllProducts,
+  // LƯU Ý: /batches chỉ trả lô còn hàng (quantity > 0). Nếu SP đã bán hết sạch,
+  // endpoint trả [] → previousCost = null → KHÔNG chắc là chưa từng nhập bao giờ.
   listBatches: (productId) => taphoa.get<BatchLite[]>(`/products/${productId}/batches`),
   saveDraft: (draft) => saveDraft(db, draft),
 };

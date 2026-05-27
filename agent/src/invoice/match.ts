@@ -28,7 +28,7 @@ export function normalizeName(s: string): string {
   return s
     .toLowerCase()
     .normalize("NFD") // tách chữ và dấu thành 2 ký tự riêng
-    .replace(/[̀-ͯ]/g, "") // xóa các dấu (huyền, sắc, mũ...)
+    .replace(/[\u0300-\u036f]/g, "") // xóa các dấu thanh/mũ (combining diacritics)
     .replace(/đ/g, "d")
     .replace(/[^a-z0-9\s]/g, " ") // bỏ ký tự đặc biệt
     .replace(/\s+/g, " ")
