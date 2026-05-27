@@ -61,6 +61,23 @@ UI gửi ảnh dạng `{ type:"image", mimeType, data }` (base64). Agent (`src/g
 | UI không kết nối được agent | Kiểm `langgraph dev` đã lên `:2024` chưa; `NEXT_PUBLIC_ASSISTANT_ID=agent` đúng tên graph chưa. |
 | Backend chưa chạy | `start-chat.sh` sẽ báo và dừng — chạy `taphoa-all` trước. |
 
-## Tunnel URL cố định (tùy chọn)
+## Tunnel URL cố định — `chat-taphoa.bangth.org` (đã cấu hình)
 
-Quick tunnel cho URL ngẫu nhiên mỗi lần. Muốn URL cố định: thêm hostname vào named tunnel `taphoa` (ingress `chat-taphoa.bangth.org` → `localhost:3030` trong `~/.cloudflared/config.yml`) + `cloudflared tunnel route dns taphoa chat-taphoa.bangth.org`.
+Thay vì quick tunnel (URL ngẫu nhiên), chat UI dùng named tunnel `taphoa` với URL cố định. Đã set up:
+
+1. **`~/.cloudflared/config.yml`** — thêm ingress (trước catch-all 404):
+   ```yaml
+   - hostname: chat-taphoa.bangth.org
+     service: http://localhost:3030
+   ```
+2. **DNS record** (chạy 1 lần): `cloudflared tunnel route dns taphoa chat-taphoa.bangth.org`
+3. **`chat-ui/next.config.mjs`** — thêm `allowedDevOrigins: ["chat-taphoa.bangth.org"]` để Next dev server cho phép tài nguyên `/_next/*` qua domain tunnel. ⚠️ `chat-ui/` gitignored → nếu clone lại phải thêm dòng này lại.
+
+**Chạy (URL cố định):**
+```bash
+taphoa-all --tunnel   # named tunnel (phục vụ cả chat-taphoa.bangth.org) + backend
+bash start-chat.sh    # chat UI :3030 + langgraph :2024 — KHÔNG cần --tunnel
+# → điện thoại: https://chat-taphoa.bangth.org
+```
+
+> Nếu `taphoa-all --tunnel` đang chạy từ trước khi sửa `config.yml`, phải restart nó để nạp ingress mới.
