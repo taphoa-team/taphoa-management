@@ -40,6 +40,7 @@ import { useCurrentShift, useOpenShift, useCloseShift } from '../hooks';
 import type { Shift } from '../types';
 import { formatVND, inputNumberFormatter, getErrorMessage } from '../utils/format';
 
+import ChatWidget from './chat/ChatWidget';
 import { Breadcrumbs } from './common';
 import ErrorBoundary from './ErrorBoundary';
 
@@ -416,6 +417,8 @@ export default function AppLayout() {
           </Form.Item>
         </Form>
       </Modal>
+
+      <ChatWidget />
     </Layout>
   );
 }
