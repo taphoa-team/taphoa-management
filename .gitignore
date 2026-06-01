@@ -39,3 +39,6 @@ taphoa-server
 
 # Tools
 tools/
+
+# Agent Chat UI (app bên thứ 3 — clone, không commit; xem chat-ui.env.example + start-chat.sh)
+chat-ui/

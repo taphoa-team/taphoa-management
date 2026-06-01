@@ -29,7 +29,7 @@ import { PageHeader, EmptyState } from '../components/common';
 import { PAGE_SIZE, DEBOUNCE_DELAY } from '../constants';
 import { useAuth } from '../contexts/useAuth';
 import {
-  useProducts,
+  useProductsPaged,
   useCategories,
   useCreateCategory,
   usePriceHistory,
@@ -76,12 +76,14 @@ export default function ProductsPage() {
 
   // ─── React Query hooks ──────────────────────────────────────────────────────
 
-  const { data: products = [], isLoading: loading } = useProducts({
+  const { data, isLoading: loading } = useProductsPaged({
     page,
     limit: PAGE_SIZE,
     search: search || undefined,
     category_id: categoryFilter || undefined,
   });
+  const products = data?.items ?? [];
+  const total = data?.total ?? 0;
 
   const { data: categories = [] } = useCategories();
 
@@ -409,6 +411,7 @@ export default function ProductsPage() {
         pagination={{
           current: page,
           pageSize: PAGE_SIZE,
+          total,
           onChange: setPage,
           showSizeChanger: false,
         }}

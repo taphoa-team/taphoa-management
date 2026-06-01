@@ -69,6 +69,7 @@ func main() {
 			AllowOrigins:     allowedOrigins,
 			AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 			AllowHeaders:     []string{"Authorization", "Content-Type"},
+			ExposeHeaders:    []string{"X-Total-Count"}, // cho browser đọc tổng số bản ghi (phân trang)
 			AllowCredentials: true,
 		}))
 	}
