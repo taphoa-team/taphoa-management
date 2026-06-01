@@ -46,25 +46,37 @@ func getStockMap(db *gorm.DB, productIDs ...[]uint) map[uint]int {
 
 // ListProducts — danh sách sản phẩm, hỗ trợ tìm kiếm + lọc
 func ListProducts(c *gin.Context) {
-	var products []models.Product
-	query := config.DB.Preload("Category").Where("is_active = ?", true)
-
-	// Tìm kiếm theo tên, SKU, hoặc barcode
-	if search := c.Query("search"); search != "" {
-		like := "%" + search + "%"
-		query = query.Where("name ILIKE ? OR sku ILIKE ? OR barcode ILIKE ?", like, like, like)
-	}
-
-	// FIX R18: Validate category_id là số
-	if categoryID := c.Query("category_id"); categoryID != "" {
+	// FIX R18: Validate category_id là số (làm sớm, dùng chung cho count + fetch)
+	categoryID := c.Query("category_id")
+	if categoryID != "" {
 		if _, err := strconv.ParseUint(categoryID, 10, 32); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "category_id không hợp lệ"})
 			return
 		}
-		query = query.Where("category_id = ?", categoryID)
+	}
+	search := c.Query("search")
+
+	// Gom filter thành 1 scope để dùng cho cả Count lẫn Find (tránh lệch điều kiện)
+	filter := func(db *gorm.DB) *gorm.DB {
+		db = db.Where("is_active = ?", true)
+		if search != "" {
+			like := "%" + search + "%"
+			db = db.Where("name ILIKE ? OR sku ILIKE ? OR barcode ILIKE ?", like, like, like)
+		}
+		if categoryID != "" {
+			db = db.Where("category_id = ?", categoryID)
+		}
+		return db
 	}
 
-	query.Scopes(paginate(c)).Order("name").Find(&products)
+	// Tổng số SP khớp filter (TRƯỚC phân trang) → header để frontend tính số trang
+	var total int64
+	config.DB.Model(&models.Product{}).Scopes(filter).Count(&total)
+	c.Header("X-Total-Count", strconv.FormatInt(total, 10))
+
+	// Sản phẩm của trang hiện tại
+	var products []models.Product
+	config.DB.Scopes(filter).Preload("Category").Scopes(paginate(c)).Order("name").Find(&products)
 
 	// FIX R5: Chỉ fetch stock cho products trong trang hiện tại
 	var productIDs []uint

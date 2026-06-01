@@ -381,6 +381,22 @@ export function useProducts(params?: Record<string, unknown>) {
   });
 }
 
+/**
+ * Như useProducts nhưng trả kèm `total` (đọc từ header X-Total-Count) để phân trang
+ * server-side. Dùng cho trang danh sách cần biết tổng số trang.
+ */
+export function useProductsPaged(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ['products', 'paged', params],
+    queryFn: async () => {
+      const res = await api.get('/products', { params });
+      const items = (res.data || []) as ProductWithStock[];
+      const headerTotal = Number(res.headers['x-total-count']);
+      return { items, total: Number.isFinite(headerTotal) ? headerTotal : items.length };
+    },
+  });
+}
+
 export function useProduct(id: number) {
   return useQuery({
     queryKey: queryKeys.products.detail(id),
