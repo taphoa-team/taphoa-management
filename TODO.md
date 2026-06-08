@@ -1,6 +1,6 @@
 # TODO — Taphoa Management
 
-> Cập nhật: 07/04/2026
+> Cập nhật: 08/06/2026
 
 ---
 
@@ -146,33 +146,36 @@
 
 ---
 
-## Phase 4: Báo cáo + Giảm giá (chưa làm)
+## Phase 4: Báo cáo + Giảm giá + Lịch sử giá ✅
+
+> Đã code xong trên main (handlers/report.go, price_history.go, ReportsPage.tsx).
 
 ### 4A. Báo cáo
-- [ ] API doanh thu theo ngày/tuần/tháng (GET /api/reports/revenue)
-- [ ] API lãi/lỗ (GET /api/reports/profit)
-- [ ] API hàng bán chạy/ế (GET /api/reports/top-products)
-- [ ] API báo cáo tồn kho (GET /api/reports/inventory)
-- [ ] API so sánh doanh thu giữa các tháng (GET /api/reports/compare)
-- [ ] Xuất báo cáo Excel
-- [ ] Frontend: trang báo cáo (biểu đồ + bảng)
+- [x] API doanh thu theo ngày/tuần/tháng (GET /api/reports/revenue)
+- [x] API lãi/lỗ (GET /api/reports/profit)
+- [x] API hàng bán chạy/ế (GET /api/reports/top-products)
+- [x] API so sánh doanh thu giữa các tháng (GET /api/reports/compare)
+- [x] Xuất báo cáo Excel (revenue/top-products/compare)
+- [x] Frontend: trang báo cáo (biểu đồ recharts + bảng, 3 tab)
+- [ ] API báo cáo tồn kho (GET /api/reports/inventory) — chưa làm
 
 ### 4B. Giảm giá + Lịch sử giá
-- [ ] API CRUD chương trình giảm giá (GET/POST/PUT/DELETE /api/discounts)
-- [ ] Logic tự động áp dụng giảm giá khi bán hàng
-- [ ] API xem lịch sử thay đổi giá (GET /api/products/:id/price-history)
-- [ ] Tự động ghi price_history khi sửa giá bán
-- [ ] Frontend: trang quản lý giảm giá
-- [ ] Frontend: hiển thị lịch sử giá trong chi tiết SP
+- [x] Giới hạn giảm giá 20% cho staff (backend validate + POS clamp)
+- [x] API xem lịch sử thay đổi giá (GET /api/products/:id/price-history)
+- [x] Tự động ghi price_history khi sửa giá bán
+- [x] Frontend: modal lịch sử giá trong trang sản phẩm
+- [ ] CRUD chương trình giảm giá (/api/discounts) — chưa làm (chỉ mới giới hạn % giảm)
 
 ---
 
-## Phase 5: AI trợ lý (chưa làm)
+## Phase 5: AI trợ lý (Trợ lý chat) ✅
 
-- [ ] Tích hợp LLM API (OpenAI/Gemini)
-- [ ] Chuyển câu hỏi tiếng Việt → query DB → trả kết quả
-- [ ] Frontend: ô chat trên dashboard
-- [ ] Test các câu hỏi phổ biến
+> Đã merge vào main (branch nhd98z/taphoa-chat-agent). Agent LangGraph + Gemini, có ChatWidget.
+
+- [x] Tích hợp LLM API (Gemini 2.5 Flash qua LangGraph.js)
+- [x] Chuyển câu hỏi tiếng Việt → đọc dữ liệu backend → trả kết quả
+- [x] Frontend: ChatWidget (bong bóng nổi mọi trang) + upload ảnh hóa đơn
+- [ ] Test kỹ flow ảnh hóa đơn (xem docs/ghi-chu-cai-thien-invoice-photo.md)
 
 ---
 
